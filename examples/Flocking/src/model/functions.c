@@ -21,25 +21,38 @@
 #define _FLAMEGPU_FUNCTIONS
 
 #include <header.h>
-#define PI_F 3.141592654f
-#define offset(bounds) (-(bounds) / 2.0)
-#define degreesToRadians(angleDegrees) ((angleDegrees) * PI_F / 180.0)
 
+#define PI_F 3.141592654f
+#define degreesToRadians(angleDegrees) ((angleDegrees) * PI_F / 180.0)
+#define offset(bounds) (-(bounds) / 2.0)
+
+/**
+ * Returns the square of the input number.
+ */
 __FLAME_GPU_FUNC__ float square(float x)
 {
 	return x * x;
 }
 
+/**
+ * Returns a new heading which has performed a rotation of at most max_turn from the current_heading.
+ */
 __FLAME_GPU_FUNC__ float turn_at_most(float turn, float current_heading, float max_turn)
 {
 	return abs(turn) > max_turn ? (turn > 0 ? current_heading + max_turn : current_heading - max_turn) : current_heading + turn;
 }
 
+/**
+ * Returns a new heading which has performed a rotation away from the target_heading.
+ */
 __FLAME_GPU_FUNC__ float turn_away(float target_heading, float current_heading, float max_turn)
 {
 	return turn_at_most(current_heading - target_heading, current_heading, max_turn);
 }
 
+/**
+ * Returns a new heading which has performed a rotation towards the target_heading.
+ */
 __FLAME_GPU_FUNC__ float turn_towards(float target_heading, float current_heading, float max_turn)
 {
 	return turn_at_most(target_heading - current_heading, current_heading, max_turn);
@@ -47,17 +60,24 @@ __FLAME_GPU_FUNC__ float turn_towards(float target_heading, float current_headin
 
 
 /**
- * setup FLAMEGPU Init function
- * Automatically generated using functions.xslt
+ * Setup FLAMEGPU Init function.
+ * Operations performed:
+ *	1. Creation of agents in order to meet the population value
+ *	2. Reinitialization of the max_turn costants in radians from their previous values in degrees
  */
 __FLAME_GPU_INIT_FUNC__ void setup()
 {
+	/* Random number seed initialization */
 	srand(0);
+
+	/* Missing agents population */
 	int p = *get_population() - get_agent_turtle_default_count();
 	float default_bounds = *get_bounds();
 	if (p > 0)
 	{
 		printf("Creating %d additional agents...\n", p);
+
+		/* Agents creation with random heading and position */
 		xmachine_memory_turtle** turtle_AoS = h_allocate_agent_turtle_array(p);
 		for (int i = 0; i < p; i++)
 		{
@@ -68,6 +88,8 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 		h_add_agents_turtle_default(turtle_AoS, p);
 		h_free_agent_turtle_array(&turtle_AoS, p);
 	}
+
+	/* Degrees constants conversion to radians */
 	float m_align, m_cohere, m_sep;
 	m_align = degreesToRadians(*get_max_align_turn());
 	m_cohere = degreesToRadians(*get_max_cohere_turn());
@@ -77,6 +99,9 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	set_max_separate_turn(&m_sep);
 }
 
+/**
+ * Maps a coordinate to its respective value inside bounds, with offset as defined in the macro.
+ */
 __FLAME_GPU_FUNC__ float move_map(float coordinate)
 {
 	float temp = fmodf(coordinate, bounds);
@@ -84,6 +109,9 @@ __FLAME_GPU_FUNC__ float move_map(float coordinate)
 	return temp + offset(bounds);
 }
 
+/**
+ * Step function that moves the agent towards its heading direction and outputs the new position.
+ */
 __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages)
 {
 	// Calculate dx and dy
@@ -98,23 +126,27 @@ __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_posi
 }
 
 /**
- * move FLAMEGPU Agent Function
- * Automatically generated using functions.xslt
+ * Flock FLAMEGPU Agent Function
+ * Implements the behaviour of a turtle in the system.
+ * 
  * @param agent Pointer to an agent structure of type xmachine_memory_turtle. This represents a single agent instance and can be modified directly.
- * @param position_messages  position_messages Pointer to input message list of type xmachine_message__list. Must be passed as an argument to the get_first_position_message and get_next_position_message functions.* @param partition_matrix Pointer to the partition matrix of type xmachine_message_position_PBM. Used within the get_first__message and get_next__message functions for spatially partitioned message access.
+ * @param position_messages  position_messages Pointer to input message list of type xmachine_message__list.
+ *			Must be passed as an argument to the get_first_position_message and get_next_position_message functions.
+ * @param partition_matrix Pointer to the partition matrix of type xmachine_message_position_PBM. 
+ *			Used within the get_first__message and get_next__message functions for spatially partitioned message access.
  */
 __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages, xmachine_message_position_PBM* partition_matrix)
 {
+	/* Finding the nearest neighbor heading and distance */
 	float nearest_squared_distance = FLT_MAX;
 	float nearest_heading = 0;
-    
-    // Find nearest neighbor
+
     xmachine_message_position* current_message = get_first_position_message(position_messages, partition_matrix, agent->x, agent->y, 0);
     while (current_message)
     {
 		float d = square(current_message->x - agent->x) + square(current_message->y - agent->y);
-		// Non è toroidale così
-		if (d < nearest_squared_distance && d > 0)
+		// TODO: Toroidal distance
+		if (d < nearest_squared_distance && d > 0 && d <= vision)
 		{
 			nearest_squared_distance = d;
 			nearest_heading = current_message->heading;
@@ -122,16 +154,19 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
         current_message = get_next_position_message(current_message, position_messages, partition_matrix);
     }
 
+	/* Minimal distance check */
 	if (nearest_squared_distance < minimum_separation)
 	{
 		// Separation
 		agent->heading = turn_away(nearest_heading, agent->heading, max_separate_turn);
 		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLUE;
 	}
+	/* Check if at least a neighbor is present */
 	else if (nearest_squared_distance < FLT_MAX)
 	{
 		// Align
 		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_GREEN;
+		/* Average neighborhood heading evaluation */
 		float avg_heading = agent->heading;
 		float dx_sum = 0, dy_sum = 0;
 		float sin_var = 0, cos_var = 0;
@@ -157,6 +192,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 		// Cohere
 		if (count != 0)
 		{
+			/* Average direction towards every neighbor evaluation */
 			sin_var /= count;
 			cos_var /= count;
 			avg_heading = atan2f(sin_var, cos_var);
@@ -169,7 +205,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 	}
 	else
 	{
-		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_YELLOW;
+		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLACK;
 	}
     return 0;
 }
