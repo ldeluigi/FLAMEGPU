@@ -31,7 +31,9 @@
  */
 __FLAME_GPU_FUNC__ float turn_at_most(float turn, float current_heading, float max_turn)
 {
-	return abs(turn) > max_turn ? (turn > 0 ? current_heading + max_turn : current_heading - max_turn) : current_heading + turn;
+	float temp = fmodf(abs(turn) > max_turn ? (turn > 0 ? current_heading + max_turn : current_heading - max_turn) : current_heading + turn, 2 * PI_F);
+	if (temp < 0) temp += 2 * PI_F;
+	return temp;
 }
 
 /**
