@@ -27,14 +27,6 @@
 #define offset(bounds) (-(bounds) / 2.0)
 
 /**
- * Returns the square of the input number.
- */
-__FLAME_GPU_FUNC__ float square(float x)
-{
-	return x * x;
-}
-
-/**
  * Returns a new heading which has performed a rotation of at most max_turn from the current_heading.
  */
 __FLAME_GPU_FUNC__ float turn_at_most(float turn, float current_heading, float max_turn)
@@ -126,6 +118,25 @@ __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_posi
 }
 
 /**
+ * Implementation of the squared distance between two points in a two dimensional torus.
+ */
+__FLAME_GPU_FUNC__ float toroidalSquaredDistance(float x1, float y1, float x2, float y2)
+{
+	float dx = fabs(x2 - x1);
+	float dy = fabs(y2 - y1);
+	float halfbounds = bounds / 2.0;
+	if (dx > halfbounds)
+	{
+		dx = bounds - dx;
+	}
+	if (dy > halfbounds)
+	{
+		dy = bounds - dy;
+	}
+	return dx * dx + dy * dy;
+}
+
+/**
  * Flock FLAMEGPU Agent Function
  * Implements the behaviour of a turtle in the system.
  * 
@@ -144,8 +155,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
     xmachine_message_position* current_message = get_first_position_message(position_messages, partition_matrix, agent->x, agent->y, 0);
     while (current_message)
     {
-		float d = square(current_message->x - agent->x) + square(current_message->y - agent->y);
-		// TODO: Toroidal distance
+		float d = toroidalSquaredDistance(current_message->x, current_message->y, agent->x, agent->y);
 		if (d < nearest_squared_distance && d > 0 && d <= vision)
 		{
 			nearest_squared_distance = d;

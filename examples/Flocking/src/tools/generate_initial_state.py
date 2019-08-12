@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-import sys, random, math
+import sys, random, math, os
 root = ET.Element('states')
 it = ET.SubElement(root, 'itno')
 it.text = '0'
@@ -18,5 +18,6 @@ for i in range(0, int(sys.argv[1])):
     heading = ET.SubElement(agent, 'heading')
     heading.text = str(random.uniform(0, 2 * math.pi))
 tree = ET.ElementTree(root)
-tree.write('../../iterations/0.xml')
+os.makedirs("../../iterations", exist_ok=True)
+tree.write('../../iterations/0.xml', encoding='UTF-8')
 

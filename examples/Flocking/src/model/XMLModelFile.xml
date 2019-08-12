@@ -7,7 +7,7 @@
         <type>int</type>
         <name>population</name>
         <description>Number of Turtles to spawn</description>
-        <defaultValue>3</defaultValue>
+        <defaultValue>30</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
