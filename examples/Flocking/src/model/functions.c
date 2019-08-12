@@ -24,7 +24,6 @@
 
 #define PI_F 3.141592654f
 #define degreesToRadians(angleDegrees) ((angleDegrees) * PI_F / 180.0)
-#define offset(bounds) (-(bounds) / 2.0)
 
 /**
  * Returns a new heading which has performed a rotation of at most max_turn from the current_heading.
@@ -76,8 +75,8 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 		for (int i = 0; i < p; i++)
 		{
 			turtle_AoS[i]->heading = (float)rand() / (float)(RAND_MAX / PI_F);
-			turtle_AoS[i]->x = (fmodf(rand(), default_bounds * 10)) / 10.0 + offset(default_bounds);
-			turtle_AoS[i]->y = (fmodf(rand(), default_bounds * 10)) / 10.0 + offset(default_bounds);
+			turtle_AoS[i]->x = (fmodf(rand(), default_bounds * 10)) / 10.0;
+			turtle_AoS[i]->y = (fmodf(rand(), default_bounds * 10)) / 10.0;
 		}
 		h_add_agents_turtle_default(turtle_AoS, p);
 		h_free_agent_turtle_array(&turtle_AoS, p);
@@ -100,7 +99,7 @@ __FLAME_GPU_FUNC__ float move_map(float coordinate)
 {
 	float temp = fmodf(coordinate, bounds);
 	if (temp < 0) temp += bounds;
-	return temp + offset(bounds);
+	return temp;
 }
 
 /**
