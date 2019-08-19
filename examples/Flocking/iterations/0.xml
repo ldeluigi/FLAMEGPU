@@ -1,1 +1,14 @@
-<states><itno>0</itno><environment /><xagent><name>turtle</name><x>8.083975842781879</x><y>7.015261807180476</y><heading>1.9479680117289273</heading></xagent></states>
+<states><itno>0</itno><environment />
+<xagent>
+<name>turtle</name>
+<x>30</x>
+<y>35</y>
+<heading>0</heading>
+</xagent>
+<xagent>
+<name>turtle</name>
+<x>40</x>
+<y>35</y>
+<heading>3.241592654f</heading>
+</xagent>
+</states>

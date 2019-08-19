@@ -23,16 +23,73 @@
 #include <header.h>
 
 #define PI_F 3.141592654f
+#define PI2_F (PI_F * 2)
 #define degreesToRadians(angleDegrees) ((angleDegrees) * PI_F / 180.0)
 
 /**
- * Returns a new heading which has performed a rotation of at most max_turn from the current_heading.
+ * Constraints the angle in input to a value in the interval [0, 2 * PI_F] where PI_F is pi in float.
+ */
+__FLAME_GPU_FUNC__ float constraintRadians(float r)
+{
+	float a = fmodf(r, PI2_F);
+	return a < 0 ? a + PI2_F : a;
+}
+
+/**
+ * Calculate the heading represented by the dx and dy distances towards the target,
+ * with and angle in the interval [0, 2 * PI_F] where PI_F is pi in float.
+ */
+__FLAME_GPU_FUNC__ float calculateHeading(float dx, float dy)
+{
+	return constraintRadians(atan2f(dy, dx));
+}
+
+/**
+ * Rotates the current heading clockwise.
+ */
+__FLAME_GPU_FUNC__ float right_turn(float current_heading, float turn)
+{
+	return constraintRadians(current_heading - turn);
+}
+
+/**
+ * Rotates the current heading counterclockwise.
+ */
+__FLAME_GPU_FUNC__ float left_turn(float current_heading, float turn)
+{
+	return constraintRadians(current_heading + turn);
+}
+
+/**
+ * Returns the minimum difference between two given angles in radians,
+ * with a value inside the interval [-PI_F/2, PI_F/2], where PI_F is pi in float.
+ */
+__FLAME_GPU_FUNC__ float subtract_headings(float h1, float h2)
+{
+	float a = h1 - h2;
+	return a + ((a > PI_F) ? -PI2_F : (a < -PI_F) ? PI2_F : 0);
+}
+
+/**
+ * Returns a new heading which has performed a rotation of at most max_turn from the current_heading, counterclockwise.
  */
 __FLAME_GPU_FUNC__ float turn_at_most(float turn, float current_heading, float max_turn)
 {
-	float temp = fmodf(abs(turn) > max_turn ? (turn > 0 ? current_heading + max_turn : current_heading - max_turn) : current_heading + turn, 2 * PI_F);
-	if (temp < 0) temp += 2 * PI_F;
-	return temp;
+	if (fabs(turn) > max_turn)
+	{
+		if (turn > 0)
+		{
+			return left_turn(current_heading, max_turn);
+		}
+		else
+		{
+			return right_turn(current_heading, max_turn);
+		}
+	}
+	else
+	{
+		return left_turn(current_heading, turn);
+	}
 }
 
 /**
@@ -40,7 +97,7 @@ __FLAME_GPU_FUNC__ float turn_at_most(float turn, float current_heading, float m
  */
 __FLAME_GPU_FUNC__ float turn_away(float target_heading, float current_heading, float max_turn)
 {
-	return turn_at_most(current_heading - target_heading, current_heading, max_turn);
+	return turn_at_most(subtract_headings(current_heading, target_heading), current_heading, max_turn);
 }
 
 /**
@@ -48,7 +105,7 @@ __FLAME_GPU_FUNC__ float turn_away(float target_heading, float current_heading, 
  */
 __FLAME_GPU_FUNC__ float turn_towards(float target_heading, float current_heading, float max_turn)
 {
-	return turn_at_most(target_heading - current_heading, current_heading, max_turn);
+	return turn_at_most(subtract_headings(target_heading, current_heading), current_heading, max_turn);
 }
 
 
@@ -74,9 +131,9 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 		xmachine_memory_turtle** turtle_AoS = h_allocate_agent_turtle_array(p);
 		for (int i = 0; i < p; i++)
 		{
-			turtle_AoS[i]->heading = (float)rand() / (float)(RAND_MAX / PI_F);
-			turtle_AoS[i]->x = (fmodf(rand(), default_bounds * 10)) / 10.0;
-			turtle_AoS[i]->y = (fmodf(rand(), default_bounds * 10)) / 10.0;
+			turtle_AoS[i]->heading = (float)rand() / (float)(RAND_MAX / (2 * PI_F));
+			turtle_AoS[i]->x = fmodf(rand(), default_bounds * 10) / 10.0;
+			turtle_AoS[i]->y = fmodf(rand(), default_bounds * 10) / 10.0;
 		}
 		h_add_agents_turtle_default(turtle_AoS, p);
 		h_free_agent_turtle_array(&turtle_AoS, p);
@@ -90,6 +147,9 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	set_max_align_turn(&m_align);
 	set_max_cohere_turn(&m_cohere);
 	set_max_separate_turn(&m_sep);
+#ifdef FLOCKING_VERBOSE
+	printf("Conversion to Radians:\nAlign turn: %.4f rad\nCohere turn: %.4f rad\nSeparate turn: %.4f rad\n", m_align, m_cohere, m_sep);
+#endif // FLOCKING_VERBOSE
 }
 
 /**
@@ -118,23 +178,31 @@ __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_posi
 	return 0;
 }
 
+__FLAME_GPU_FUNC__ float toroidalDifference(float a, float b)
+{
+	float d = fabs(a - b);
+	float halfbounds = bounds / 2.0;
+	if (d > halfbounds)
+	{
+		d = bounds - d;
+	}
+	return d;
+}
+
 /**
  * Implementation of the squared distance between two points in a two dimensional torus.
  */
-__FLAME_GPU_FUNC__ float toroidalSquaredDistance(float x1, float y1, float x2, float y2)
+__FLAME_GPU_FUNC__ float toroidalDistance(float x1, float y1, float x2, float y2)
 {
-	float dx = fabs(x2 - x1);
-	float dy = fabs(y2 - y1);
-	float halfbounds = bounds / 2.0;
-	if (dx > halfbounds)
-	{
-		dx = bounds - dx;
-	}
-	if (dy > halfbounds)
-	{
-		dy = bounds - dy;
-	}
-	return dx * dx + dy * dy;
+	float dx = toroidalDifference(x2, x1);
+	float dy = toroidalDifference(y2, y1);
+	return sqrt(dx * dx + dy * dy);
+}
+
+__FLAME_GPU_FUNC__ bool agent_equals(xmachine_memory_turtle* agent, xmachine_message_position* position)
+{
+	// TODO: should set and id for this
+	return agent->x == position->x &&  agent->y == position->y;
 }
 
 /**
@@ -149,18 +217,42 @@ __FLAME_GPU_FUNC__ float toroidalSquaredDistance(float x1, float y1, float x2, f
  */
 __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages, xmachine_message_position_PBM* partition_matrix)
 {
-	/* Finding the nearest neighbor heading and distance */
+	/* 1. Finding the nearest neighbor heading and distance */
 	float nearest_squared_distance = FLT_MAX;
 	float nearest_heading = 0;
+
+	/* 2. Average neighborhood heading evaluation */
+	float avg_heading = agent->heading;
+	float dx_sum = 0, dy_sum = 0;
+	/* 3. Average heading to neighborhood evaluation */
+	float sin_var = 0, cos_var = 0;
+	/* 4. Neighbor count */
+	int count = 0;
 
     xmachine_message_position* current_message = get_first_position_message(position_messages, partition_matrix, agent->x, agent->y, 0);
     while (current_message)
     {
-		float d = toroidalSquaredDistance(current_message->x, current_message->y, agent->x, agent->y);
-		if (d < nearest_squared_distance && d > 0 && d <= vision)
+		float d = toroidalDistance(agent->x, agent->y, current_message->x, current_message->y);
+		if (!agent_equals(agent, current_message) && d <= vision)
 		{
-			nearest_squared_distance = d;
-			nearest_heading = current_message->heading;
+			/* 1. */
+			if (d < nearest_squared_distance)
+			{
+				nearest_squared_distance = d;
+				nearest_heading = calculateHeading(current_message->x - agent->x, current_message->y - agent->y);
+			}
+
+			/* 2. */
+			dx_sum += current_message->dx;
+			dy_sum += current_message->dy;
+
+			/* 3. TODO: Toroidal! */
+			float towards_heading = atan2f(current_message->y - agent->y, current_message->x - agent->x);
+			sin_var += sinf(towards_heading);
+			cos_var += cosf(towards_heading);
+
+			/* 4. */
+			count++;
 		}
         current_message = get_next_position_message(current_message, position_messages, partition_matrix);
     }
@@ -169,53 +261,36 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 	if (nearest_squared_distance < minimum_separation)
 	{
 		// Separation
+#ifdef FLOCKING_VERBOSE
+		printf("Separating from %f to %f to avoid %f, calculated from nearest neighbor\n", agent->heading, turn_away(nearest_heading, agent->heading, max_separate_turn), nearest_heading);
+#endif // FLOCKING_VERBOSE
 		agent->heading = turn_away(nearest_heading, agent->heading, max_separate_turn);
 		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLUE;
 	}
-	/* Check if at least a neighbor is present */
-	else if (nearest_squared_distance < FLT_MAX)
+	/* Check if at least one neighbor is present */
+	else if (count > 0)
 	{
 		// Align
-		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_GREEN;
-		/* Average neighborhood heading evaluation */
-		float avg_heading = agent->heading;
-		float dx_sum = 0, dy_sum = 0;
-		float sin_var = 0, cos_var = 0;
-		int count = 0;
-		xmachine_message_position* current_message = get_first_position_message(position_messages, partition_matrix, agent->x, agent->y, 0);
-		while (current_message)
-		{
-			dx_sum += current_message->dx;
-			dy_sum += current_message->dy;
-			float towards_heading = atan2f(current_message->y - agent->y, current_message->x - agent->x);
-			sin_var += sinf(towards_heading);
-			cos_var += cosf(towards_heading);
-			count++;
-			current_message = get_next_position_message(current_message, position_messages, partition_matrix);
-		}
-		if (count != 0)
-		{
-			avg_heading = atan2f(dy_sum, dx_sum);
-		}
+		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_YELLOW;
+		avg_heading = calculateHeading(dx_sum, dy_sum);
+#ifdef FLOCKING_VERBOSE
+		printf("Align from %f to %f to match %f, calculated from %d neighbors (dys: %f, dxs: %f)\n", agent->heading, turn_towards(avg_heading, agent->heading, max_align_turn), avg_heading, count, dy_sum, dx_sum);
+#endif // FLOCKING_VERBOSE
 		agent->heading = turn_towards(avg_heading, agent->heading, max_align_turn);
-
-
+		
 		// Cohere
-		if (count != 0)
-		{
-			/* Average direction towards every neighbor evaluation */
-			sin_var /= count;
-			cos_var /= count;
-			avg_heading = atan2f(sin_var, cos_var);
-		}
-		else
-		{
-			avg_heading = agent->heading;
-		}
+		/* Average direction towards every neighbor evaluation */
+		sin_var /= count;
+		cos_var /= count;
+		avg_heading = calculateHeading(cos_var, sin_var);
+#ifdef FLOCKING_VERBOSE
+		printf("Cohere from %f to %f to match %f, calculated from %d neighbors (sin: %f, cos: %f)\n", agent->heading, turn_towards(avg_heading, agent->heading, max_cohere_turn), avg_heading, count, sin_var, cos_var);
+#endif // FLOCKING_VERBOSE
 		agent->heading = turn_towards(avg_heading, agent->heading, max_cohere_turn);
 	}
 	else
 	{
+		/* Agent is alone */
 		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLACK;
 	}
     return 0;

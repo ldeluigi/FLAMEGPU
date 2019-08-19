@@ -7,7 +7,7 @@
         <type>int</type>
         <name>population</name>
         <description>Number of Turtles to spawn</description>
-        <defaultValue>200</defaultValue>
+        <defaultValue>500</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
@@ -19,7 +19,7 @@
         <type>float</type>
         <name>minimum_separation</name>
         <description>The distance from witch Turtles are considered separated</description>
-        <defaultValue>0.4f</defaultValue>
+        <defaultValue>1.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
@@ -37,13 +37,13 @@
         <type>float</type>
         <name>max_separate_turn</name>
         <description>The rotation capability of a Turtle in one iteration, in degrees, for separation</description>
-        <defaultValue>1.50f</defaultValue>
+        <defaultValue>1.5f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
         <name>speed</name>
         <description>Units traveled every iteration</description>
-        <defaultValue>0.5f</defaultValue>
+        <defaultValue>0.2f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
@@ -150,13 +150,13 @@
         </gpu:variable>
       </variables>
       <gpu:partitioningSpatial>
-        <gpu:radius>2</gpu:radius>
-        <gpu:xmin>-10</gpu:xmin>
-        <gpu:xmax>10</gpu:xmax>
-        <gpu:ymin>-10</gpu:ymin>
-        <gpu:ymax>10</gpu:ymax>
-        <gpu:zmin>-2</gpu:zmin>
-        <gpu:zmax>2</gpu:zmax>
+        <gpu:radius>5</gpu:radius>
+        <gpu:xmin>0</gpu:xmin>
+        <gpu:xmax>70</gpu:xmax>
+        <gpu:ymin>0</gpu:ymin>
+        <gpu:ymax>70</gpu:ymax>
+        <gpu:zmin>0</gpu:zmin>
+        <gpu:zmax>5</gpu:zmax>
       </gpu:partitioningSpatial>
       <gpu:bufferSize>32768</gpu:bufferSize>
     </gpu:message>
