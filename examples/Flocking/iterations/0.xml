@@ -3,12 +3,12 @@
 <name>turtle</name>
 <x>30</x>
 <y>35</y>
-<heading>0</heading>
+<heading>3.241592654f</heading>
 </xagent>
 <xagent>
 <name>turtle</name>
-<x>40</x>
+<x>31</x>
 <y>35</y>
-<heading>3.241592654f</heading>
+<heading>0</heading>
 </xagent>
 </states>

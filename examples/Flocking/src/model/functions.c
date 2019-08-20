@@ -140,15 +140,17 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	}
 
 	/* Degrees constants conversion to radians */
-	float m_align, m_cohere, m_sep;
+	float m_align, m_cohere, m_sep, m_fov;
 	m_align = degreesToRadians(*get_max_align_turn());
 	m_cohere = degreesToRadians(*get_max_cohere_turn());
 	m_sep = degreesToRadians(*get_max_separate_turn());
+	m_fov = degreesToRadians(*get_FOV());
 	set_max_align_turn(&m_align);
 	set_max_cohere_turn(&m_cohere);
 	set_max_separate_turn(&m_sep);
+	set_FOV(&m_fov);
 #ifdef FLOCKING_VERBOSE
-	printf("Conversion to Radians:\nAlign turn: %.4f rad\nCohere turn: %.4f rad\nSeparate turn: %.4f rad\n", m_align, m_cohere, m_sep);
+	printf("Conversion to Radians:\nAlign turn: %.4f rad\nCohere turn: %.4f rad\nSeparate turn: %.4f rad\nFOV: %.4f rad\n", m_align, m_cohere, m_sep, m_fov);
 #endif // FLOCKING_VERBOSE
 }
 
@@ -209,6 +211,14 @@ __FLAME_GPU_FUNC__ bool agent_equals(xmachine_memory_turtle* agent, xmachine_mes
 }
 
 /**
+ * Returns true if the towards_angle is in the range [-FOV/2, FOV/2] centered at the current heading.
+ */
+__FLAME_GPU_FUNC__ bool in_FOV(float towards_angle, float current_heading)
+{
+	return fabs(subtract_headings(towards_angle, current_heading)) <= FOV / 2.0f;
+}
+
+/**
  * Flock FLAMEGPU Agent Function
  * Implements the behaviour of a turtle in the system.
  * 
@@ -235,10 +245,9 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
     while (current_message)
     {
 		float d = toroidalDistance(agent->x, agent->y, current_message->x, current_message->y);
-		if (!agent_equals(agent, current_message) && d <= vision)
+		float towards = calculateHeading(toroidalDifference(current_message->x, agent->x), toroidalDifference(current_message->y, agent->y));
+		if (!agent_equals(agent, current_message) && d <= vision && in_FOV(towards, agent->heading))
 		{
-			float towards = calculateHeading(toroidalDifference(current_message->x, agent->x), toroidalDifference(current_message->y, agent->y));
-
 			/* 1. */
 			if (d < nearest_squared_distance)
 			{

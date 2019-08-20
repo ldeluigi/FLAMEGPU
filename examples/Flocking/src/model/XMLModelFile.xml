@@ -51,6 +51,12 @@
         <description>Dimension of an edge of the world</description>
         <defaultValue>70.0f</defaultValue>
       </gpu:variable>
+      <gpu:variable>
+        <type>float</type>
+        <name>FOV</name>
+        <description>The field of view for each agent, in degrees, centered at the heading direction</description>
+        <defaultValue>90.0f</defaultValue>
+      </gpu:variable>
     </gpu:constants>
     <gpu:functionFiles>
       <file>functions.c</file>
