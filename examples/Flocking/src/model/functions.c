@@ -178,6 +178,9 @@ __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_posi
 	return 0;
 }
 
+/**
+ * Calculates the difference between two coordinates inside a toroidal space.
+ */
 __FLAME_GPU_FUNC__ float toroidalDifference(float a, float b)
 {
 	float d = fabs(a - b);
@@ -186,7 +189,7 @@ __FLAME_GPU_FUNC__ float toroidalDifference(float a, float b)
 	{
 		d = bounds - d;
 	}
-	return d;
+	return a - b > 0 ? d : -d;
 }
 
 /**
@@ -220,7 +223,6 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 	/* 1. Finding the nearest neighbor heading and distance */
 	float nearest_squared_distance = FLT_MAX;
 	float nearest_heading = 0;
-
 	/* 2. Average neighborhood heading evaluation */
 	float avg_heading = agent->heading;
 	float dx_sum = 0, dy_sum = 0;
@@ -235,21 +237,22 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 		float d = toroidalDistance(agent->x, agent->y, current_message->x, current_message->y);
 		if (!agent_equals(agent, current_message) && d <= vision)
 		{
+			float towards = calculateHeading(toroidalDifference(current_message->x, agent->x), toroidalDifference(current_message->y, agent->y));
+
 			/* 1. */
 			if (d < nearest_squared_distance)
 			{
 				nearest_squared_distance = d;
-				nearest_heading = calculateHeading(current_message->x - agent->x, current_message->y - agent->y);
+				nearest_heading = towards;
 			}
 
 			/* 2. */
 			dx_sum += current_message->dx;
 			dy_sum += current_message->dy;
 
-			/* 3. TODO: Toroidal! */
-			float towards_heading = atan2f(current_message->y - agent->y, current_message->x - agent->x);
-			sin_var += sinf(towards_heading);
-			cos_var += cosf(towards_heading);
+			/* 3. */
+			sin_var += sinf(towards);
+			cos_var += cosf(towards);
 
 			/* 4. */
 			count++;
