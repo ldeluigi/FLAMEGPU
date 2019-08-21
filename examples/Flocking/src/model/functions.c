@@ -131,7 +131,7 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 		xmachine_memory_turtle** turtle_AoS = h_allocate_agent_turtle_array(p);
 		for (int i = 0; i < p; i++)
 		{
-			turtle_AoS[i]->heading = (float)rand() / (float)(RAND_MAX / (2 * PI_F));
+			turtle_AoS[i]->heading = (float)rand() / (float)(RAND_MAX / PI2_F);
 			turtle_AoS[i]->x = fmodf(rand(), default_bounds * 10) / 10.0;
 			turtle_AoS[i]->y = fmodf(rand(), default_bounds * 10) / 10.0;
 		}
@@ -160,8 +160,7 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 __FLAME_GPU_FUNC__ float move_map(float coordinate)
 {
 	float temp = fmodf(coordinate, bounds);
-	if (temp < 0) temp += bounds;
-	return temp;
+	return temp < 0 ? temp + bounds : temp;
 }
 
 /**
@@ -186,8 +185,7 @@ __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_posi
 __FLAME_GPU_FUNC__ float toroidalDifference(float a, float b)
 {
 	float d = fabs(a - b);
-	float halfbounds = bounds / 2.0;
-	if (d > halfbounds)
+	if (d > bounds / 2.0)
 	{
 		d = bounds - d;
 	}
@@ -269,7 +267,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
         current_message = get_next_position_message(current_message, position_messages, partition_matrix);
     }
 
-	/* Minimal distance check */
+	/* Minimum distance check */
 	if (nearest_squared_distance < minimum_separation)
 	{
 		// Separation
