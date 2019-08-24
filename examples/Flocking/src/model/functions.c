@@ -31,7 +31,7 @@
  */
 __FLAME_GPU_FUNC__ float constraintRadians(float r)
 {
-	float a = fmodf(r, PI2_F);
+	const float a = fmodf(r, PI2_F);
 	return a < 0 ? a + PI2_F : a;
 }
 
@@ -39,7 +39,7 @@ __FLAME_GPU_FUNC__ float constraintRadians(float r)
  * Calculate the heading represented by the dx and dy distances towards the target,
  * with and angle in the interval [0, 2 * PI_F] where PI_F is pi in float.
  */
-__FLAME_GPU_FUNC__ float calculateHeading(float dx, float dy)
+__FLAME_GPU_FUNC__ inline float calculateHeading(float dx, float dy)
 {
 	return constraintRadians(atan2f(dy, dx));
 }
@@ -47,7 +47,7 @@ __FLAME_GPU_FUNC__ float calculateHeading(float dx, float dy)
 /**
  * Rotates the current heading clockwise.
  */
-__FLAME_GPU_FUNC__ float right_turn(float current_heading, float turn)
+__FLAME_GPU_FUNC__ inline float right_turn(float current_heading, float turn)
 {
 	return constraintRadians(current_heading - turn);
 }
@@ -55,7 +55,7 @@ __FLAME_GPU_FUNC__ float right_turn(float current_heading, float turn)
 /**
  * Rotates the current heading counterclockwise.
  */
-__FLAME_GPU_FUNC__ float left_turn(float current_heading, float turn)
+__FLAME_GPU_FUNC__ inline float left_turn(float current_heading, float turn)
 {
 	return constraintRadians(current_heading + turn);
 }
@@ -66,7 +66,7 @@ __FLAME_GPU_FUNC__ float left_turn(float current_heading, float turn)
  */
 __FLAME_GPU_FUNC__ float subtract_headings(float h1, float h2)
 {
-	float a = h1 - h2;
+	const float a = h1 - h2;
 	return a + ((a > PI_F) ? -PI2_F : (a < -PI_F) ? PI2_F : 0);
 }
 
@@ -95,7 +95,7 @@ __FLAME_GPU_FUNC__ float turn_at_most(float turn, float current_heading, float m
 /**
  * Returns a new heading which has performed a rotation away from the target_heading.
  */
-__FLAME_GPU_FUNC__ float turn_away(float target_heading, float current_heading, float max_turn)
+__FLAME_GPU_FUNC__ inline float turn_away(float target_heading, float current_heading, float max_turn)
 {
 	return turn_at_most(subtract_headings(current_heading, target_heading), current_heading, max_turn);
 }
@@ -103,7 +103,7 @@ __FLAME_GPU_FUNC__ float turn_away(float target_heading, float current_heading, 
 /**
  * Returns a new heading which has performed a rotation towards the target_heading.
  */
-__FLAME_GPU_FUNC__ float turn_towards(float target_heading, float current_heading, float max_turn)
+__FLAME_GPU_FUNC__ inline float turn_towards(float target_heading, float current_heading, float max_turn)
 {
 	return turn_at_most(subtract_headings(target_heading, current_heading), current_heading, max_turn);
 }
@@ -159,7 +159,7 @@ __FLAME_GPU_INIT_FUNC__ void setup()
  */
 __FLAME_GPU_FUNC__ float move_map(float coordinate)
 {
-	float temp = fmodf(coordinate, bounds);
+	const float temp = fmodf(coordinate, bounds);
 	return temp < 0 ? temp + bounds : temp;
 }
 
@@ -169,8 +169,8 @@ __FLAME_GPU_FUNC__ float move_map(float coordinate)
 __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages)
 {
 	// Calculate dx and dy
-	float dx = cosf(agent->heading) * speed;
-	float dy = sinf(agent->heading) * speed;
+	const float dx = cosf(agent->heading) * speed;
+	const float dy = sinf(agent->heading) * speed;
 	// Move
 	agent->x = move_map(dx + agent->x);
 	agent->y = move_map(dy + agent->y);
@@ -197,12 +197,12 @@ __FLAME_GPU_FUNC__ float toroidalDifference(float a, float b)
  */
 __FLAME_GPU_FUNC__ float toroidalDistance(float x1, float y1, float x2, float y2)
 {
-	float dx = toroidalDifference(x2, x1);
-	float dy = toroidalDifference(y2, y1);
+	const float dx = toroidalDifference(x2, x1);
+	const float dy = toroidalDifference(y2, y1);
 	return sqrt(dx * dx + dy * dy);
 }
 
-__FLAME_GPU_FUNC__ bool agent_equals(xmachine_memory_turtle* agent, xmachine_message_position* position)
+__FLAME_GPU_FUNC__ inline bool agent_equals(xmachine_memory_turtle* agent, xmachine_message_position* position)
 {
 	// TODO: should set and id for this
 	return agent->x == position->x &&  agent->y == position->y;
@@ -211,7 +211,7 @@ __FLAME_GPU_FUNC__ bool agent_equals(xmachine_memory_turtle* agent, xmachine_mes
 /**
  * Returns true if the towards_angle is in the range [-FOV/2, FOV/2] centered at the current heading.
  */
-__FLAME_GPU_FUNC__ bool in_FOV(float towards_angle, float current_heading)
+__FLAME_GPU_FUNC__ inline bool in_FOV(float towards_angle, float current_heading)
 {
 	return fabs(subtract_headings(towards_angle, current_heading)) <= FOV / 2.0f;
 }
@@ -229,7 +229,7 @@ __FLAME_GPU_FUNC__ bool in_FOV(float towards_angle, float current_heading)
 __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages, xmachine_message_position_PBM* partition_matrix)
 {
 	/* 1. Finding the nearest neighbor heading and distance */
-	float nearest_squared_distance = FLT_MAX;
+	float nearest_distance = FLT_MAX;
 	float nearest_heading = 0;
 	/* 2. Average neighborhood heading evaluation */
 	float avg_heading = agent->heading;
@@ -247,9 +247,9 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 		if (!agent_equals(agent, current_message) && d <= vision && in_FOV(towards, agent->heading))
 		{
 			/* 1. */
-			if (d < nearest_squared_distance)
+			if (d < nearest_distance)
 			{
-				nearest_squared_distance = d;
+				nearest_distance = d;
 				nearest_heading = towards;
 			}
 
@@ -268,7 +268,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
     }
 
 	/* Minimum distance check */
-	if (nearest_squared_distance < minimum_separation)
+	if (nearest_distance < minimum_separation)
 	{
 		// Separation
 #ifdef FLOCKING_VERBOSE

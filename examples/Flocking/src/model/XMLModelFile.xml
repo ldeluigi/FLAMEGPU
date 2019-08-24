@@ -6,7 +6,7 @@
       <gpu:variable>
         <type>int</type>
         <name>population</name>
-        <description>Number of Turtles to spawn</description>
+        <description>Number of agents to spawn</description>
         <defaultValue>500</defaultValue>
       </gpu:variable>
       <gpu:variable>
@@ -18,25 +18,25 @@
       <gpu:variable>
         <type>float</type>
         <name>minimum_separation</name>
-        <description>The distance from witch Turtles are considered separated</description>
+        <description>The distance from witch agents are considered separated</description>
         <defaultValue>1.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
         <name>max_align_turn</name>
-        <description>The rotation capability of a Turtle in one iteration, in degrees, for alignment</description>
+        <description>The rotation capability of a agent in one iteration, in degrees, for alignment</description>
         <defaultValue>5.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
         <name>max_cohere_turn</name>
-        <description>The rotation capability of a Turtle in one iteration, in degrees, for cohesion</description>
+        <description>The rotation capability of a agent in one iteration, in degrees, for cohesion</description>
         <defaultValue>3.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
         <name>max_separate_turn</name>
-        <description>The rotation capability of a Turtle in one iteration, in degrees, for separation</description>
+        <description>The rotation capability of a agent in one iteration, in degrees, for separation</description>
         <defaultValue>1.5f</defaultValue>
       </gpu:variable>
       <gpu:variable>
@@ -55,7 +55,7 @@
         <type>float</type>
         <name>FOV</name>
         <description>The field of view for each agent, in degrees, centered at the heading direction</description>
-        <defaultValue>90.0f</defaultValue>
+        <defaultValue>120.0f</defaultValue>
       </gpu:variable>
     </gpu:constants>
     <gpu:functionFiles>
