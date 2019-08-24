@@ -120,6 +120,8 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	/* Random number seed initialization */
 	srand(0);
 
+	float speed = *get_speed();
+
 	/* Missing agents population */
 	int p = *get_population() - get_agent_turtle_default_count();
 	float default_bounds = *get_bounds();
@@ -134,23 +136,20 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 			turtle_AoS[i]->heading = (float)rand() / (float)(RAND_MAX / PI2_F);
 			turtle_AoS[i]->x = fmodf(rand(), default_bounds * 10) / 10.0;
 			turtle_AoS[i]->y = fmodf(rand(), default_bounds * 10) / 10.0;
+			turtle_AoS[i]->speed = speed;
 		}
 		h_add_agents_turtle_default(turtle_AoS, p);
 		h_free_agent_turtle_array(&turtle_AoS, p);
 	}
 
 	/* Degrees constants conversion to radians */
-	float m_align, m_cohere, m_sep, m_fov;
-	m_align = degreesToRadians(*get_max_align_turn());
-	m_cohere = degreesToRadians(*get_max_cohere_turn());
-	m_sep = degreesToRadians(*get_max_separate_turn());
+	float m_turn, m_fov;
+	m_turn = degreesToRadians(*get_max_turn());
 	m_fov = degreesToRadians(*get_FOV());
-	set_max_align_turn(&m_align);
-	set_max_cohere_turn(&m_cohere);
-	set_max_separate_turn(&m_sep);
+	set_max_turn(&m_turn);
 	set_FOV(&m_fov);
 #ifdef FLOCKING_VERBOSE
-	printf("Conversion to Radians:\nAlign turn: %.4f rad\nCohere turn: %.4f rad\nSeparate turn: %.4f rad\nFOV: %.4f rad\n", m_align, m_cohere, m_sep, m_fov);
+	printf("Conversion to Radians:\nMax turn: %.4f rad\nFOV: %.4f rad\n", m_turn, m_fov);
 #endif // FLOCKING_VERBOSE
 }
 
@@ -169,13 +168,13 @@ __FLAME_GPU_FUNC__ float move_map(float coordinate)
 __FLAME_GPU_FUNC__ int move(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages)
 {
 	// Calculate dx and dy
-	float dx = cosf(agent->heading) * speed;
-	float dy = sinf(agent->heading) * speed;
+	float dx = cosf(agent->heading) * agent->speed;
+	float dy = sinf(agent->heading) * agent->speed;
 	// Move
 	agent->x = move_map(dx + agent->x);
 	agent->y = move_map(dy + agent->y);
 	// Output position message
-	add_position_message(position_messages, agent->x, agent->y, 0, dx, dy, agent->heading);
+	add_position_message(position_messages, agent->x, agent->y, 0, dx, dy, agent->heading, agent->speed);
 	return 0;
 }
 
@@ -211,9 +210,17 @@ __FLAME_GPU_FUNC__ bool agent_equals(xmachine_memory_turtle* agent, xmachine_mes
 /**
  * Returns true if the towards_angle is in the range [-FOV/2, FOV/2] centered at the current heading.
  */
-__FLAME_GPU_FUNC__ bool in_FOV(float towards_angle, float current_heading)
+__FLAME_GPU_FUNC__ inline bool in_cone(float towards_angle, float current_heading, float fov)
 {
-	return fabs(subtract_headings(towards_angle, current_heading)) <= FOV / 2.0f;
+	return fabs(subtract_headings(towards_angle, current_heading)) <= fov / 2.0f;
+}
+
+/**
+ * Returns true if the towards_angle is in the range [-FOV/2, FOV/2] centered at the current heading.
+ */
+__FLAME_GPU_FUNC__ inline bool in_FOV(float towards_angle, float current_heading)
+{
+	return in_cone(towards_angle, current_heading, FOV);
 }
 
 /**
@@ -228,16 +235,21 @@ __FLAME_GPU_FUNC__ bool in_FOV(float towards_angle, float current_heading)
  */
 __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages, xmachine_message_position_PBM* partition_matrix)
 {
+	// Reset base speed
+	agent->speed = speed;
+
 	/* 1. Finding the nearest neighbor heading and distance */
-	float nearest_squared_distance = FLT_MAX;
+	float nearest_distance = FLT_MAX;
 	float nearest_heading = 0;
-	/* 2. Average neighborhood heading evaluation */
-	float avg_heading = agent->heading;
-	float dx_sum = 0, dy_sum = 0;
+	float nearest_towards = 0;
+	float nearest_speed = 0;
+
 	/* 3. Average heading to neighborhood evaluation */
 	float sin_var = 0, cos_var = 0;
 	/* 4. Neighbor count */
 	int count = 0;
+
+	bool obstructed = false;
 
     xmachine_message_position* current_message = get_first_position_message(position_messages, partition_matrix, agent->x, agent->y, 0);
     while (current_message)
@@ -247,15 +259,13 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 		if (!agent_equals(agent, current_message) && d <= vision && in_FOV(towards, agent->heading))
 		{
 			/* 1. */
-			if (d < nearest_squared_distance)
+			if (d < nearest_distance)
 			{
-				nearest_squared_distance = d;
-				nearest_heading = towards;
+				nearest_distance = d;
+				nearest_heading = current_message->heading;
+				nearest_speed = current_message->speed;
+				nearest_towards = towards;
 			}
-
-			/* 2. */
-			dx_sum += current_message->dx;
-			dy_sum += current_message->dy;
 
 			/* 3. */
 			sin_var += sinf(towards);
@@ -263,40 +273,39 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 
 			/* 4. */
 			count++;
+
+			if (!obstructed && in_cone(towards, agent->heading, obstruction_angle))
+			{
+				obstructed = true;
+			}
 		}
         current_message = get_next_position_message(current_message, position_messages, partition_matrix);
     }
 
-	/* Minimum distance check */
-	if (nearest_squared_distance < minimum_separation)
-	{
-		// Separation
-#ifdef FLOCKING_VERBOSE
-		printf("Separating from %f to %f to avoid %f, calculated from nearest neighbor\n", agent->heading, turn_away(nearest_heading, agent->heading, max_separate_turn), nearest_heading);
-#endif // FLOCKING_VERBOSE
-		agent->heading = turn_away(nearest_heading, agent->heading, max_separate_turn);
-		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLUE;
-	}
 	/* Check if at least one neighbor is present */
-	else if (count > 0)
+	if (count > 0)
 	{
-		// Align
-		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_YELLOW;
-		avg_heading = calculateHeading(dx_sum, dy_sum);
-#ifdef FLOCKING_VERBOSE
-		printf("Align from %f to %f to match %f, calculated from %d neighbors (dys: %f, dxs: %f)\n", agent->heading, turn_towards(avg_heading, agent->heading, max_align_turn), avg_heading, count, dy_sum, dx_sum);
-#endif // FLOCKING_VERBOSE
-		agent->heading = turn_towards(avg_heading, agent->heading, max_align_turn);
-		
-		// Cohere
-		/* Average direction towards every neighbor evaluation */
-		sin_var /= count;
-		cos_var /= count;
-		avg_heading = calculateHeading(cos_var, sin_var);
-#ifdef FLOCKING_VERBOSE
-		printf("Cohere from %f to %f to match %f, calculated from %d neighbors (sin: %f, cos: %f)\n", agent->heading, turn_towards(avg_heading, agent->heading, max_cohere_turn), avg_heading, count, sin_var, cos_var);
-#endif // FLOCKING_VERBOSE
-		agent->heading = turn_towards(avg_heading, agent->heading, max_cohere_turn);
+		if (nearest_distance > updraft_distance)
+		{
+			turn_towards(nearest_towards, agent->heading, max_turn);
+			agent->speed = speed * (1 + speed_change);
+
+		}
+		else if (obstructed)
+		{
+			// TODO: Random [-max_turn, max_turn]
+			agent->heading = turn_at_most(max_turn, agent->heading, max_turn);
+			agent->speed = speed * (1 + speed_change);
+		}
+		else if (nearest_distance < minimum_separation)
+		{
+			agent->speed = speed * (1 - speed_change);
+		}
+		else
+		{
+			agent->speed = nearest_speed;
+			agent->heading = turn_towards(nearest_heading, agent->heading, max_turn);
+		}
 	}
 	else
 	{

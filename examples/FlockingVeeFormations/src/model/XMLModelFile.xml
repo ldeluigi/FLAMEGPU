@@ -1,43 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <gpu:xmodel xmlns:gpu="http://www.dcs.shef.ac.uk/~paul/XMMLGPU" xmlns="http://www.dcs.shef.ac.uk/~paul/XMML">
-  <name>Flocking</name>
+  <name>Flocking Vee Formations</name>
   <gpu:environment>
     <gpu:constants>
       <gpu:variable>
         <type>int</type>
         <name>population</name>
-        <description>Number of Turtles to spawn</description>
-        <defaultValue>500</defaultValue>
+        <description>Number of agents to spawn</description>
+        <defaultValue>40</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
         <name>vision</name>
         <description>The distance of sight of the Turtles</description>
-        <defaultValue>5.0f</defaultValue>
+        <defaultValue>10.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
-        <name>minimum_separation</name>
-        <description>The distance from witch Turtles are considered separated</description>
-        <defaultValue>1.0f</defaultValue>
+        <name>FOV</name>
+        <description>The field of view for each agent, in degrees, centered at the heading direction</description>
+        <defaultValue>120.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
-        <name>max_align_turn</name>
-        <description>The rotation capability of a Turtle in one iteration, in degrees, for alignment</description>
-        <defaultValue>5.0f</defaultValue>
-      </gpu:variable>
-      <gpu:variable>
-        <type>float</type>
-        <name>max_cohere_turn</name>
-        <description>The rotation capability of a Turtle in one iteration, in degrees, for cohesion</description>
-        <defaultValue>3.0f</defaultValue>
-      </gpu:variable>
-      <gpu:variable>
-        <type>float</type>
-        <name>max_separate_turn</name>
-        <description>The rotation capability of a Turtle in one iteration, in degrees, for separation</description>
-        <defaultValue>1.5f</defaultValue>
+        <name>obstruction_angle</name>
+        <description>The angle span from which an agent considers its vision obstructed</description>
+        <defaultValue>45.0f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
@@ -47,15 +35,33 @@
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
-        <name>bounds</name>
-        <description>Dimension of an edge of the world</description>
-        <defaultValue>70.0f</defaultValue>
+        <name>speed_change</name>
+        <description>Factor that determines the change in speed for the birds</description>
+        <defaultValue>0.15f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
-        <name>FOV</name>
-        <description>The field of view for each agent, in degrees, centered at the heading direction</description>
-        <defaultValue>90.0f</defaultValue>
+        <name>updraft_distance</name>
+        <description>Distance under which a bird can take from the upwash of another bird</description>
+        <defaultValue>4.0f</defaultValue>
+      </gpu:variable>
+      <gpu:variable>
+        <type>float</type>
+        <name>minimum_separation</name>
+        <description>The distance from witch Turtles are considered separated</description>
+        <defaultValue>1.6f</defaultValue>
+      </gpu:variable>
+      <gpu:variable>
+        <type>float</type>
+        <name>max_turn</name>
+        <description>The rotation capability of a Turtle in one iteration, in degrees</description>
+        <defaultValue>4.0f</defaultValue>
+      </gpu:variable>
+      <gpu:variable>
+        <type>float</type>
+        <name>bounds</name>
+        <description>Dimension of an edge of the world</description>
+        <defaultValue>70.0f</defaultValue>
       </gpu:variable>
     </gpu:constants>
     <gpu:functionFiles>
@@ -87,6 +93,10 @@
         <gpu:variable>
           <type>float</type>
           <name>heading</name>
+        </gpu:variable>
+        <gpu:variable>
+          <type>float</type>
+          <name>speed</name>
         </gpu:variable>
       </memory>
       <functions>
@@ -154,14 +164,18 @@
           <type>float</type>
           <name>heading</name>
         </gpu:variable>
+        <gpu:variable>
+          <type>float</type>
+          <name>speed</name>
+        </gpu:variable>
       </variables>
       <gpu:partitioningSpatial>
-        <gpu:radius>5</gpu:radius>
+        <gpu:radius>10</gpu:radius>
         <gpu:xmin>0</gpu:xmin>
         <gpu:xmax>70</gpu:xmax>
         <gpu:ymin>0</gpu:ymin>
         <gpu:ymax>70</gpu:ymax>
-        <gpu:zmin>0</gpu:zmin>
+        <gpu:zmin>-5</gpu:zmin>
         <gpu:zmax>5</gpu:zmax>
       </gpu:partitioningSpatial>
       <gpu:bufferSize>32768</gpu:bufferSize>
