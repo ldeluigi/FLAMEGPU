@@ -7,7 +7,7 @@
         <type>int</type>
         <name>population</name>
         <description>Number of agents to spawn</description>
-        <defaultValue>40</defaultValue>
+        <defaultValue>2</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
@@ -123,7 +123,7 @@
             </gpu:input>
           </inputs>
           <gpu:reallocate>false</gpu:reallocate>
-          <gpu:RNG>false</gpu:RNG>
+          <gpu:RNG>true</gpu:RNG>
         </gpu:function>
       </functions>
       <states>

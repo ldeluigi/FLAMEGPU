@@ -120,11 +120,11 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	/* Random number seed initialization */
 	srand(0);
 
-	float speed = *get_speed();
+	const float speed = *get_speed();
 
 	/* Missing agents population */
-	int p = *get_population() - get_agent_turtle_default_count();
-	float default_bounds = *get_bounds();
+	const int p = *get_population() - get_agent_turtle_default_count();
+	const float default_bounds = *get_bounds();
 	if (p > 0)
 	{
 		printf("Creating %d additional agents...\n", p);
@@ -143,11 +143,13 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	}
 
 	/* Degrees constants conversion to radians */
-	float m_turn, m_fov;
+	float m_turn, m_fov, m_obs;
 	m_turn = degreesToRadians(*get_max_turn());
 	m_fov = degreesToRadians(*get_FOV());
+	m_obs = degreesToRadians(*get_obstruction_angle());
 	set_max_turn(&m_turn);
 	set_FOV(&m_fov);
+	set_obstruction_angle(&m_obs);
 #ifdef FLOCKING_VERBOSE
 	printf("Conversion to Radians:\nMax turn: %.4f rad\nFOV: %.4f rad\n", m_turn, m_fov);
 #endif // FLOCKING_VERBOSE
@@ -233,7 +235,7 @@ __FLAME_GPU_FUNC__ inline bool in_FOV(float towards_angle, float current_heading
  * @param partition_matrix Pointer to the partition matrix of type xmachine_message_position_PBM. 
  *			Used within the get_first__message and get_next__message functions for spatially partitioned message access.
  */
-__FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages, xmachine_message_position_PBM* partition_matrix)
+__FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_position_list* position_messages, xmachine_message_position_PBM* partition_matrix, RNG_rand48* rand48)
 {
 	// Reset base speed
 	agent->speed = speed;
@@ -244,8 +246,6 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 	float nearest_towards = 0;
 	float nearest_speed = 0;
 
-	/* 3. Average heading to neighborhood evaluation */
-	float sin_var = 0, cos_var = 0;
 	/* 4. Neighbor count */
 	int count = 0;
 
@@ -267,10 +267,6 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 				nearest_towards = towards;
 			}
 
-			/* 3. */
-			sin_var += sinf(towards);
-			cos_var += cosf(towards);
-
 			/* 4. */
 			count++;
 
@@ -287,24 +283,39 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 	{
 		if (nearest_distance > updraft_distance)
 		{
-			turn_towards(nearest_towards, agent->heading, max_turn);
+			agent->heading = turn_towards(nearest_towards, agent->heading, max_turn);
 			agent->speed = speed * (1 + speed_change);
-
+			agent->colour = FLAME_GPU_VISUALISATION_COLOUR_CYAN;
+#ifdef FLOCKING_VERBOSE
+			printf("[%.2f, %.2f] Turning towards %f and accelerating to gain updraft advantage\n", agent->x, agent->y, nearest_towards);
+#endif // FLOCKING_VERBOSE
 		}
 		else if (obstructed)
 		{
-			// TODO: Random [-max_turn, max_turn]
-			agent->heading = turn_at_most(max_turn, agent->heading, max_turn);
+			const float random = rnd<CONTINUOUS>(rand48);
+			agent->heading = turn_at_most(random * max_turn * 2 - max_turn, agent->heading, max_turn);
 			agent->speed = speed * (1 + speed_change);
+			agent->colour = FLAME_GPU_VISUALISATION_COLOUR_RED;
+#ifdef FLOCKING_VERBOSE
+			printf("[%.2f, %.2f] Moving to avoid obstruction\n", agent->x, agent->y);
+#endif // FLOCKING_VERBOSE
 		}
 		else if (nearest_distance < minimum_separation)
 		{
 			agent->speed = speed * (1 - speed_change);
+			agent->colour = FLAME_GPU_VISUALISATION_COLOUR_GREEN;
+#ifdef FLOCKING_VERBOSE
+			printf("[%.2f, %.2f] Slowing down to mantain minimum separation\n", agent->x, agent->y);
+#endif // FLOCKING_VERBOSE
 		}
 		else
 		{
 			agent->speed = nearest_speed;
 			agent->heading = turn_towards(nearest_heading, agent->heading, max_turn);
+			agent->colour = FLAME_GPU_VISUALISATION_COLOUR_YELLOW;
+#ifdef FLOCKING_VERBOSE
+			printf("[%.2f, %.2f] Imitating neighbor speed and heading\n", agent->x, agent->y);
+#endif // FLOCKING_VERBOSE
 		}
 	}
 	else
