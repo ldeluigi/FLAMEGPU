@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="https://schemas.microsoft.com/developer/msbuild/2003">;
+<UsingTask TaskName="GetOutOfDateItems" AssemblyFile="$(VCTargetsPath15)Microsoft.Build.CppTasks.Common.dll"/>
+<Target Name="AdditionalSourceItemsForUpToDateCheck"
+AfterTargets="BuildGenerateSources">
+<GetOutOfDateItems
+Condition ="'$(SelectedFiles)' == ''"
+Sources ="@(CudaCompile)"
+OutputsMetadataName ="_Outputs_"
+DependenciesMetadataName ="_AdditionalInputs_"
+CommandMetadataName ="_Command_"
+TLogDirectory ="$(TLogLocation)"
+TLogNamePrefix ="AdditionalSourceItems"
+/>
+</Target>
+</Project>
