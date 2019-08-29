@@ -29,7 +29,7 @@ EXAMPLE := Flocking
 HAS_VISUALISATION := 1
 
 # Flag indicating if a custom visulisation is used. 0 = no, 1 = yes.
-CUSTOM_VISUALISATION := 0
+CUSTOM_VISUALISATION := 1
 
 # Relative path to the root FLAME GPU directory. Must end with a trainling slash.
 FLAMEGPU_ROOT := ../../
