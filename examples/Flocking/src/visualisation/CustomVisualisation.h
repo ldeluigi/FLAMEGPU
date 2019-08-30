@@ -15,9 +15,9 @@ const float NEAR_CLIP = 0.1f;
 const float FAR_CLIP = 300;
 
 //Circle model fidelity
-const int SPHERE_SLICES = 8;
-const int SPHERE_STACKS = 8;
-const float SPHERE_RADIUS = 0.1f;
+const int CONE_SLICES = 8;
+const float CONE_HEIGHT = 1.0f;
+const float CONE_RADIUS = 0.25f;
 
 //Viewing Distance
 const float VIEW_DISTANCE = 16;

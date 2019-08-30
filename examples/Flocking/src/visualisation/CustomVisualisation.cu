@@ -221,9 +221,9 @@ void initVisualisation()
 
 	// create VBO's
 
-	createVBO(&coneVerts, (SPHERE_SLICES + 2) * sizeof(glm::vec3));
-	createVBO(&coneNormals, (SPHERE_SLICES + 2) * sizeof(glm::vec3));
-	createVIBO(&coneIndices, (3 * 2 * SPHERE_SLICES) * sizeof(unsigned int));
+	createVBO(&coneVerts, (CONE_SLICES + 2) * sizeof(glm::vec3));
+	createVBO(&coneNormals, (CONE_SLICES + 2) * sizeof(glm::vec3));
+	createVIBO(&coneIndices, (3 * 2 * CONE_SLICES) * sizeof(unsigned int));
 
 	setVertexBufferData();
 
@@ -469,9 +469,9 @@ void deleteTBO(cudaGraphicsResource_t* cudaResource, GLuint* tbo)
 ////////////////////////////////////////////////////////////////////////////////
 
 static void setConeVertex(glm::vec3* data, int slice) {
-	if (slice == SPHERE_SLICES + 1)
+	if (slice == CONE_SLICES + 1)
 	{
-		data->x = SPHERE_STACKS;
+		data->x = CONE_HEIGHT;
 		data->y = 0;
 		data->z = 0;
 	}
@@ -486,35 +486,11 @@ static void setConeVertex(glm::vec3* data, int slice) {
 		float s = slice - 1;
 		float PI = 3.14159265358f;
 
-		float theta = 2 * PI*s / SPHERE_SLICES;
+		float theta = 2 * PI*s / CONE_SLICES;
 
 		data->x = 0;
-		data->y = sin(theta) * SPHERE_RADIUS;
-		data->z = cos(theta) * SPHERE_RADIUS;
-	}
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-//! Set Cone Vertex Index Data
-////////////////////////////////////////////////////////////////////////////////
-
-static void setConeVertexIndex(unsigned int* data, int count) {
-	const int n = count / 6;
-	const int i = count % 6;
-	if (i == 0) *data = 0;
-	else if (i == 5) *data = SPHERE_SLICES + 1;
-	else
-	{
-		if (i < 3)
-		{
-			*data = n + i;
-		}
-		else
-		{
-			const unsigned int index = n + i - 2;
-			*data = (index == SPHERE_SLICES + 1 ? 1 : index);
-		}
+		data->y = sin(theta) * CONE_RADIUS;
+		data->z = cos(theta) * CONE_RADIUS;
 	}
 }
 
@@ -523,7 +499,7 @@ static void setConeVertexIndex(unsigned int* data, int count) {
 ////////////////////////////////////////////////////////////////////////////////
 
 static void setConeNormal(glm::vec3* data, int slice) {
-	if (slice == SPHERE_SLICES + 1)
+	if (slice == CONE_SLICES + 1)
 	{
 		data->x = 1;
 		data->y = 0;
@@ -537,16 +513,41 @@ static void setConeNormal(glm::vec3* data, int slice) {
 	}
 	else
 	{
-		float s = slice - 1;
-		float PI = 3.14159265358f;
+		const float angle = atanf(CONE_RADIUS / CONE_HEIGHT);
+		const float s = slice - 1;
+		const float PI = 3.14159265358f;
 
-		float theta = 2 * PI*s / SPHERE_SLICES;
+		float theta = 2 * PI * s / CONE_SLICES;
 
-		data->x = 0;
-		data->y = sin(theta);
-		data->z = cos(theta);
+		data->x = sin(angle);
+		data->y = cos(angle) * sin(theta);
+		data->z = cos(angle) * cos(theta);
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//! Set Cone Vertex Index Data
+////////////////////////////////////////////////////////////////////////////////
+
+static void setConeVertexIndex(unsigned int* data, int count) {
+	const int n = count / 6;
+	const int i = count % 6;
+	if (i == 0) *data = 0;
+	else if (i == 5) *data = CONE_SLICES + 1;
+	else
+	{
+		if (i < 3)
+		{
+			*data = n + i;
+		}
+		else
+		{
+			const unsigned int index = n + i - 2;
+			*data = (index == CONE_SLICES + 1 ? 1 : index);
+		}
+	}
+}
+
 
 
 
@@ -564,28 +565,29 @@ void setVertexBufferData()
 	glBindBuffer(GL_ARRAY_BUFFER, coneVerts);
 	glm::vec3* verts = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	i = 0;
-	for (slice = 0; slice <= SPHERE_SLICES + 1; slice++) {
+	for (slice = 0; slice <= CONE_SLICES + 1; slice++) {
 		setConeVertex(&verts[i++], slice);
 	}
 	glUnmapBuffer(GL_ARRAY_BUFFER);
-
-	// upload vertex points data
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
-	unsigned int* indices = (unsigned int*)glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-	for (i = 0; i < SPHERE_SLICES * 2 * 3; i++) {
-		setConeVertexIndex(&indices[i], i);
-	}
-	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
 	// upload vertex normal data
 	glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
 	glm::vec3* normals = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	i = 0;
-	for (slice = 0; slice < SPHERE_SLICES / 2; slice++) {
+	for (slice = 0; slice <= CONE_SLICES + 1; slice++) {
 		setConeNormal(&normals[i++], slice);
 	}
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);
+
+	// upload vertex points data
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
+	unsigned int* indices = (unsigned int*)glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+	for (i = 0; i < CONE_SLICES * 2 * 3; i++) {
+		setConeVertexIndex(&indices[i], i);
+	}
+	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+
 }
 
 
@@ -655,7 +657,7 @@ void display()
 		glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
 		glNormalPointer(GL_FLOAT, 0, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
-		glDrawElements(GL_TRIANGLES, 3 * 2 * SPHERE_SLICES, GL_UNSIGNED_INT, nullptr);
+		glDrawElements(GL_TRIANGLES, 3 * 2 * CONE_SLICES, GL_UNSIGNED_INT, nullptr);
 
 
 		glDisableClientState(GL_NORMAL_ARRAY);
