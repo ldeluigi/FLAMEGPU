@@ -43,7 +43,7 @@
         <type>float</type>
         <name>speed</name>
         <description>Units traveled every iteration</description>
-        <defaultValue>0.2f</defaultValue>
+        <defaultValue>0.1f</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>

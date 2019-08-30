@@ -118,7 +118,7 @@ const char vertexShaderSource[] =
 	"{																			\n"
 	"	vec4 position = gl_Vertex;											    \n"
 	"	vec4 lookup = texelFetchBuffer(displacementMap, (int)mapIndex);		    \n"
-	"	if (lookup.w > 7.5)	                								\n"
+	"	if (lookup.w > 7.5)	                								    \n"
 	"		colour = vec4(0.518, 0.353, 0.02, 0.0);						    	\n"
 	"	else if (lookup.w > 6.5)	               								\n"
 	"		colour = vec4(1.0, 1.0, 1.0, 0.0);								    \n"
@@ -138,6 +138,10 @@ const char vertexShaderSource[] =
 	"		colour = vec4(0.0, 0.0, 0.0, 0.0);								    \n"
 	"																    		\n"
 	"	lookup.w = 1.0;												    		\n"
+	"   float xtemp = position.x * cos(lookup.z) - position.y * sin(lookup.z);  \n"
+    "   position.y = position.x * sin(lookup.z) + position.y * cos(lookup.z);   \n"
+	"   position.x = xtemp;                                                     \n"
+	"   lookup.z = 0;                                                           \n"
 	"	position += lookup;											    		\n"
 	"   gl_Position = gl_ModelViewProjectionMatrix * position;		    		\n"
 	"																			\n"
@@ -183,7 +187,7 @@ __global__ void output_turtle_agent_to_VBO(xmachine_memory_turtle_list* agents, 
 
 	vbo[index].x = agents->x[index] - centralise.x;
 	vbo[index].y = agents->y[index] - centralise.y;
-	vbo[index].z = 0.0;
+	vbo[index].z = agents->heading[index];
 	vbo[index].w = agents->colour[index];
 }
 

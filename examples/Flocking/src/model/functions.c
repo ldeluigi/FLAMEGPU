@@ -275,7 +275,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 		printf("Separating from %f to %f to avoid %f, calculated from nearest neighbor\n", agent->heading, turn_away(nearest_heading, agent->heading, max_separate_turn), nearest_heading);
 #endif // FLOCKING_VERBOSE
 		agent->heading = turn_away(nearest_heading, agent->heading, max_separate_turn);
-		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLUE;
+		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_CYAN;
 	}
 	/* Check if at least one neighbor is present */
 	else if (count > 0)
@@ -301,7 +301,7 @@ __FLAME_GPU_FUNC__ int flock(xmachine_memory_turtle* agent, xmachine_message_pos
 	else
 	{
 		/* Agent is alone */
-		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_BLACK;
+		agent->colour = FLAME_GPU_VISUALISATION_COLOUR_MAGENTA;
 	}
     return 0;
 }

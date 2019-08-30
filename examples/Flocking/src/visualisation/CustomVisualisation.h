@@ -16,8 +16,8 @@ const float FAR_CLIP = 300;
 
 //Circle model fidelity
 const int CONE_SLICES = 8;
-const float CONE_HEIGHT = 1.0f;
-const float CONE_RADIUS = 0.25f;
+const float CONE_HEIGHT = 0.5f;
+const float CONE_RADIUS = 0.20f;
 
 //Viewing Distance
 const float VIEW_DISTANCE = 16;
