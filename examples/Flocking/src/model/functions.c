@@ -1,18 +1,8 @@
 
 /*
- * FLAME GPU v 1.5.X for CUDA 9
- * Copyright University of Sheffield.
- * Original Author: Dr Paul Richmond (user contributions tracked on https://github.com/FLAMEGPU/FLAMEGPU)
- * Contact: p.richmond@sheffield.ac.uk (http://www.paulrichmond.staff.shef.ac.uk)
- *
- * University of Sheffield retain all intellectual property and
- * proprietary rights in and to this software and related documentation.
- * Any use, reproduction, disclosure, or distribution of this software
- * and related documentation without an express license agreement from
- * University of Sheffield is strictly prohibited.
- *
- * For terms of licence agreement please attached licence or view licence
- * on www.flamegpu.com website.
+ * Flocking model implementation based on the NetLogo Flocking model, which is based on the Boids software.
+ * Link at the original Flocking: https://ccl.northwestern.edu/netlogo/models/Flocking
+ * Boids: https://www.red3d.com/cwr/boids/
  *
  */
 
@@ -121,8 +111,8 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 	srand(0);
 
 	/* Missing agents population */
-	int p = *get_population() - get_agent_turtle_default_count();
-	float default_bounds = *get_bounds();
+	const int p = *get_population() - get_agent_turtle_default_count();
+	const float default_bounds = *get_bounds();
 	if (p > 0)
 	{
 		printf("Creating %d additional agents...\n", p);
@@ -204,7 +194,7 @@ __FLAME_GPU_FUNC__ float toroidalDistance(float x1, float y1, float x2, float y2
 
 __FLAME_GPU_FUNC__ inline bool agent_equals(xmachine_memory_turtle* agent, xmachine_message_position* position)
 {
-	// TODO: should set and id for this
+	// Maybe and ID would be better
 	return agent->x == position->x &&  agent->y == position->y;
 }
 
