@@ -17,34 +17,36 @@
 
 #define FOVY 45.0
 
-// bo variables
-
+// Buffer Objects ids
 GLuint coneIndices;
 GLuint coneVerts;
 GLuint coneNormals;
 
 
-//Simulation output buffers/textures
-
+// Simulation buffers/textures
 cudaGraphicsResource_t turtle_default_cgr;
 GLuint turtle_default_tbo;
 GLuint turtle_default_displacementTex;
 
 
-// mouse controls
+// Mouse Controls
 int mouse_old_x, mouse_old_y;
 int mouse_buttons = 0;
 float rotate_x = 0.0, rotate_y = 0.0;
 float translate_z = -VIEW_DISTANCE;
 
-// keyboard controls
+// Keyboard Controls
+const float camera_speed = 0.2f;
+float translate_y = 0, translate_x = 0;
+glm::fvec3 pos(0, 0, 0);
+enum Direction { UP, DOWN, LEFT, RIGHT };
 #if defined(PAUSE_ON_START)
 bool paused = true;
 #else
 bool paused = false;
 #endif
 
-// vertex Shader
+// Vertex Shader
 GLuint vertexShader;
 GLuint fragmentShader;
 GLuint shaderProgram;
@@ -53,18 +55,19 @@ GLuint vs_mapIndex;
 
 
 
-//timer
+// Timer
 cudaEvent_t start, stop;
 const int display_rate = 50;
 int frame_count;
 float frame_time = 0.0;
 
 #ifdef SIMULATION_DELAY
-//delay
 int delay_count = 0;
 #endif
 
-// prototypes
+/**
+ * Prototypes
+ */
 int initGL();
 void initShader();
 void createVBO(GLuint* vbo, GLuint size);
@@ -81,8 +84,8 @@ void mouse(int button, int state, int x, int y);
 void motion(int x, int y);
 void runCuda();
 void checkGLError();
-
 void createVIBO(GLuint* vbo, GLuint size);
+void moveCamera(Direction d);
 
 
 /* Error check function for safe CUDA API calling */
@@ -107,83 +110,80 @@ inline void gpuLaunchAssert(const char *file, int line, bool abort = true)
 
 }
 
-const char vertexShaderSource[] =
-{
-	"#extension GL_EXT_gpu_shader4 : enable										\n"
-	"uniform samplerBuffer displacementMap;										\n"
-	"attribute in float mapIndex;												\n"
-	"varying vec3 normal, lightDir;												\n"
-	"varying vec4 colour;														\n"
-	"void main()																\n"
-	"{																			\n"
-	"	vec4 position = gl_Vertex;											    \n"
-	"	vec4 lookup = texelFetchBuffer(displacementMap, (int)mapIndex);		    \n"
-	"	if (lookup.w > 7.5)	                								    \n"
-	"		colour = vec4(0.518, 0.353, 0.02, 0.0);						    	\n"
-	"	else if (lookup.w > 6.5)	               								\n"
-	"		colour = vec4(1.0, 1.0, 1.0, 0.0);								    \n"
-	"	else if (lookup.w > 5.5)	                							\n"
-	"		colour = vec4(1.0, 0.0, 1.0, 0.0);								    \n"
-	"	else if (lookup.w > 4.5)	                							\n"
-	"		colour = vec4(0.0, 1.0, 1.0, 0.0);								    \n"
-	"	else if (lookup.w > 3.5)	                							\n"
-	"		colour = vec4(1.0, 1.0, 0.0, 0.0);								    \n"
-	"	else if (lookup.w > 2.5)	                							\n"
-	"		colour = vec4(0.0, 0.0, 1.0, 0.0);								    \n"
-	"	else if (lookup.w > 1.5)	                							\n"
-	"		colour = vec4(0.0, 1.0, 0.0, 0.0);								    \n"
-	"	else if (lookup.w > 0.5)	                							\n"
-	"		colour = vec4(1.0, 0.0, 0.0, 0.0);								    \n"
-	"	else                      	                							\n"
-	"		colour = vec4(0.0, 0.0, 0.0, 0.0);								    \n"
-	"																    		\n"
-	"	lookup.w = 1.0;												    		\n"
-	"   float xtemp = position.x * cos(lookup.z) - position.y * sin(lookup.z);  \n"
-    "   position.y = position.x * sin(lookup.z) + position.y * cos(lookup.z);   \n"
-	"   position.x = xtemp;                                                     \n"
-	"   lookup.z = 0;                                                           \n"
-	"	position += lookup;											    		\n"
-	"   gl_Position = gl_ModelViewProjectionMatrix * position;		    		\n"
-	"																			\n"
-	"	vec3 mvVertex = vec3(gl_ModelViewMatrix * position);			    	\n"
-	"	lightDir = vec3(gl_LightSource[0].position.xyz - mvVertex);				\n"
-	"	normal = gl_NormalMatrix * gl_Normal;									\n"
-	"}																			\n"
-};
+/**
+ * Shaders sources.
+ */
+const char vertexShaderSource[] = R"(
+	#extension GL_EXT_gpu_shader4 : enable
+	uniform samplerBuffer displacementMap;
+	attribute in float mapIndex;
+	varying vec3 normal, lightDir;
+	varying vec4 colour;
+	void main()
+	{
+		vec4 position = gl_Vertex;
+		vec4 lookup = texelFetchBuffer(displacementMap, (int)mapIndex);
+		if (lookup.w > 7.5)
+			colour = vec4(0.518, 0.353, 0.02, 0.0);
+		else if (lookup.w > 6.5)
+			colour = vec4(1.0, 1.0, 1.0, 0.0);
+		else if (lookup.w > 5.5)
+			colour = vec4(1.0, 0.0, 1.0, 0.0);
+		else if (lookup.w > 4.5)
+			colour = vec4(0.0, 1.0, 1.0, 0.0);
+		else if (lookup.w > 3.5)
+			colour = vec4(1.0, 1.0, 0.0, 0.0);
+		else if (lookup.w > 2.5)
+			colour = vec4(0.0, 0.0, 1.0, 0.0);
+		else if (lookup.w > 1.5)
+			colour = vec4(0.0, 1.0, 0.0, 0.0);
+		else if (lookup.w > 0.5)
+			colour = vec4(1.0, 0.0, 0.0, 0.0);
+		else
+			colour = vec4(0.0, 0.0, 0.0, 0.0);
+		
+		lookup.w = 1.0;
+	    float xtemp = position.x * cos(lookup.z) - position.y * sin(lookup.z);
+        position.y = position.x * sin(lookup.z) + position.y * cos(lookup.z);
+	    position.x = xtemp;
+	    lookup.z = 0;
+	 	position += lookup;
+	    gl_Position = gl_ModelViewProjectionMatrix * position;
+	 	
+	 	vec3 mvVertex = vec3(gl_ModelViewMatrix * position);
+	 	lightDir = vec3(gl_LightSource[0].position.xyz - mvVertex);
+	 	normal = gl_NormalMatrix * gl_Normal;
+	 })"
+	;
 
-const char fragmentShaderSource[] =
-{
-	"varying vec3 normal, lightDir;												\n"
-	"varying vec4 colour;														\n"
-	"void main (void)															\n"
-	"{																			\n"
-	"	// Defining The Material Colors											\n"
-	"	vec4 AmbientColor = vec4(0.25, 0.0, 0.0, 1.0);							\n"
-	"	vec4 DiffuseColor = colour;					            		    	\n"
-	"																			\n"
-	"	// Scaling The Input Vector To Length 1									\n"
-	"	vec3 n_normal = normalize(normal);							        	\n"
-	"	vec3 n_lightDir = normalize(lightDir);	                                \n"
-	"																			\n"
-	"	// Calculating The Diffuse Term And Clamping It To [0;1]				\n"
-	"	float DiffuseTerm = clamp(dot(n_normal, n_lightDir), 0.0, 1.0);\n"
-	"																			\n"
-	"	// Calculating The Final Color											\n"
-	"	gl_FragColor = AmbientColor + DiffuseColor * DiffuseTerm;				\n"
-	"																			\n"
-	"}																			\n"
-};
+const char fragmentShaderSource[] = R"(
 
-//GPU Kernels
+	varying vec3 normal, lightDir;
+	varying vec4 colour;
+	void main (void)
+	{
+		// Defining The Material Colors
+		vec4 AmbientColor = vec4(0.25, 0.0, 0.0, 1.0);
+		vec4 DiffuseColor = colour;
+		
+		// Scaling The Input Vector To Length 1
+		vec3 n_normal = normalize(normal);
+		vec3 n_lightDir = normalize(lightDir);
+		
+		// Calculating The Diffuse Term And Clamping It To [0;1]
+		float DiffuseTerm = clamp(dot(n_normal, n_lightDir), 0.0, 1.0);
+		
+		// Calculating The Final Color
+		gl_FragColor = AmbientColor + DiffuseColor * DiffuseTerm;
+		
+	})"
+	;
 
+// GPU Kernel
 __global__ void output_turtle_agent_to_VBO(xmachine_memory_turtle_list* agents, glm::vec4* vbo, glm::vec3 centralise) {
 
 	//global thread index
-	int index = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-
-	vbo[index].x = 0.0;
-	vbo[index].y = 0.0;
-	vbo[index].z = 0.0;
+	const int index = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
 
 	vbo[index].x = agents->x[index] - centralise.x;
 	vbo[index].y = agents->y[index] - centralise.y;
@@ -191,26 +191,27 @@ __global__ void output_turtle_agent_to_VBO(xmachine_memory_turtle_list* agents, 
 	vbo[index].w = agents->colour[index];
 }
 
-
+/**
+ * Hook function to the simulation.
+ */
 void initVisualisation()
 {
 	// Create GL context
 	int   argc = 1;
 	char glutString[] = "GLUT application";
 	char *argv[] = { glutString, NULL };
-	//char *argv[] = {"GLUT application", NULL};
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-	glutCreateWindow("FLAME GPU Visualiser");
+	glutCreateWindow("Flocking - FLAME GPU Visualiser");
 
-	// initialize GL
+	// GL Initialization
 	if (!initGL()) {
 		return;
 	}
 	initShader();
 
-	// register callbacks
+	// Callbacks registration
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);
 	glutCloseFunc(close);
@@ -223,15 +224,14 @@ void initVisualisation()
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
 
 
-	// create VBO's
-
+	// Vertex Buffers Object creation
 	createVBO(&coneVerts, (CONE_SLICES + 2) * sizeof(glm::vec3));
 	createVBO(&coneNormals, (CONE_SLICES + 2) * sizeof(glm::vec3));
 	createVIBO(&coneIndices, (3 * 2 * CONE_SLICES) * sizeof(unsigned int));
 
 	setVertexBufferData();
 
-	// create TBO
+	// Texture Buffer Object creation
 	createTBO(&turtle_default_cgr, &turtle_default_tbo, &turtle_default_displacementTex, xmachine_memory_turtle_MAX * sizeof(glm::vec4));
 
 
@@ -243,6 +243,9 @@ void initVisualisation()
 	cudaEventCreate(&stop);
 }
 
+/**
+ * Hook function to the simulation.
+ */
 void runVisualisation() {
 	// Flush outputs prior to simulation loop.
 	fflush(stdout);
@@ -251,9 +254,9 @@ void runVisualisation() {
 	glutMainLoop();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Run the Cuda part of the computation
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Run the Cuda part of the computation
+ */
 void runCuda()
 {
 	if (!paused) {
@@ -268,46 +271,48 @@ void runCuda()
 #endif
 	}
 
-	//kernals sizes
-	int threads_per_tile = 256;
+	// Kernel params
+	const int threads_per_tile = 256;
 	int tile_size;
 	dim3 grid;
 	dim3 threads;
 	glm::vec3 centralise;
 
-	//pointer
+	// Pointer
 	glm::vec4 *dptr;
-
 
 	if (get_agent_turtle_default_count() > 0)
 	{
-		// map OpenGL buffer object for writing from CUDA
+		// Mapping OpenGL buffer object for writing from CUDA
 		size_t accessibleBufferSize = 0;
 		gpuErrchk(cudaGraphicsMapResources(1, &turtle_default_cgr));
 		gpuErrchk(cudaGraphicsResourceGetMappedPointer((void**)&dptr, &accessibleBufferSize, turtle_default_cgr));
-		//cuda block size
+
+		// Cuda block size
 		tile_size = (int)ceil((float)get_agent_turtle_default_count() / threads_per_tile);
 		grid = dim3(tile_size, 1, 1);
 		threads = dim3(threads_per_tile, 1, 1);
 
-		//continuous variables  
+		// Variables for a continuous environment
 		centralise = getMaximumBounds() + getMinimumBounds();
 		centralise /= 2;
 
+		// Kernel call
 		output_turtle_agent_to_VBO << < grid, threads >> > (get_device_turtle_default_agents(), dptr, centralise);
 		gpuErrchkLaunch();
-		// unmap buffer object
+
+		// Buffer Object Unmap
 		gpuErrchk(cudaGraphicsUnmapResources(1, &turtle_default_cgr));
 	}
 
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Initialize GL
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * GL Initialization.
+ */
 int initGL()
 {
-	// initialize necessary OpenGL extensions
+	// Necessary OpenGL extensions initialization
 	glewInit();
 	if (!glewIsSupported("GL_VERSION_2_0 "
 		"GL_ARB_pixel_buffer_object")) {
@@ -316,45 +321,46 @@ int initGL()
 		return 1;
 	}
 
-	// default initialization
+	// Default initialization
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glEnable(GL_DEPTH_TEST);
 
+	// Window reshape
 	reshape(WINDOW_WIDTH, WINDOW_HEIGHT);
 	checkGLError();
 
-	//lighting
+	// Lighting
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 
 	return 1;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Initialize GLSL Vertex Shader
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * GL Vertex Shader compilation and initialization.
+ */
 void initShader()
 {
 	const char* v = vertexShaderSource;
 	const char* f = fragmentShaderSource;
 
-	//vertex shader
+	// Vertex Shader
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &v, 0);
 	glCompileShader(vertexShader);
 
-	//fragment shader
+	// Fragment Shader
 	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShader, 1, &f, 0);
 	glCompileShader(fragmentShader);
 
-	//program
+	// Program
 	shaderProgram = glCreateProgram();
 	glAttachShader(shaderProgram, vertexShader);
 	glAttachShader(shaderProgram, fragmentShader);
 	glLinkProgram(shaderProgram);
 
-	// check for errors
+	// Error check
 	GLint status;
 	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status);
 	if (status == GL_FALSE) {
@@ -377,23 +383,23 @@ void initShader()
 		printf("ERROR: Shader Program Link Error\n");
 	}
 
-	// get shader variables
+	// Get shader variables
 	vs_displacementMap = glGetUniformLocation(shaderProgram, "displacementMap");
 	vs_mapIndex = glGetAttribLocation(shaderProgram, "mapIndex");
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Create VIBO
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Creates an Index Buffer for Vertices.
+ */
 void createVIBO(GLuint* vbo, GLuint size)
 {
-	// create buffer object
+	// Index Buffer creation
 	glGenBuffers(1, vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *vbo);
 
-	// initialize buffer object
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, 0, GL_STATIC_DRAW);
+	// Index Buffer initialization
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -401,16 +407,16 @@ void createVIBO(GLuint* vbo, GLuint size)
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Create VBO
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Creates a Vertex Buffer Object.
+ */
 void createVBO(GLuint* vbo, GLuint size)
 {
-	// create buffer object
+	// Vertex Buffer creation
 	glGenBuffers(1, vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo);
 
-	// initialize buffer object
+	// Vertex Buffer initialization
 	glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -418,9 +424,9 @@ void createVBO(GLuint* vbo, GLuint size)
 	checkGLError();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Delete VBO
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Deletes a Vertex or an Index Buffer.
+ */
 void deleteVBO(GLuint* vbo)
 {
 	glBindBuffer(1, *vbo);
@@ -429,33 +435,33 @@ void deleteVBO(GLuint* vbo)
 	*vbo = 0;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Create TBO
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Creates a Texture Buffer object.
+ */
 void createTBO(cudaGraphicsResource_t* cudaResource, GLuint* tbo, GLuint* tex, GLuint size)
 {
-	// create buffer object
+	// Texture Buffer Creation
 	glGenBuffers(1, tbo);
 	glBindBuffer(GL_TEXTURE_BUFFER_EXT, *tbo);
 
-	// initialize buffer object
+	// Texture Buffer Initialization
 	glBufferData(GL_TEXTURE_BUFFER_EXT, size, 0, GL_DYNAMIC_DRAW);
 
-	//tex
+	// Textures
 	glGenTextures(1, tex);
 	glBindTexture(GL_TEXTURE_BUFFER_EXT, *tex);
 	glTexBufferEXT(GL_TEXTURE_BUFFER_EXT, GL_RGBA32F_ARB, *tbo);
 	glBindBuffer(GL_TEXTURE_BUFFER_EXT, 0);
 
-	// register buffer object with CUDA
+	// Buffer object registration with CUDA
 	gpuErrchk(cudaGraphicsGLRegisterBuffer(cudaResource, *tbo, cudaGraphicsMapFlagsWriteDiscard));
 
 	checkGLError();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Delete TBO
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Deletes a Texture Buffer object.
+ */
 void deleteTBO(cudaGraphicsResource_t* cudaResource, GLuint* tbo)
 {
 	gpuErrchk(cudaGraphicsUnregisterResource(*cudaResource));
@@ -468,10 +474,9 @@ void deleteTBO(cudaGraphicsResource_t* cudaResource, GLuint* tbo)
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Set Cone Vertex Data
-////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * Sets the cone vertices.
+ */
 static void setConeVertex(glm::vec3* data, int slice) {
 	if (slice == CONE_SLICES + 1)
 	{
@@ -487,10 +492,10 @@ static void setConeVertex(glm::vec3* data, int slice) {
 	}
 	else
 	{
-		float s = slice - 1;
-		float PI = 3.14159265358f;
+		const float s = slice - 1.0f;
+		const float PI = 3.14159265358f;
 
-		float theta = 2 * PI*s / CONE_SLICES;
+		const float theta = 2 * PI*s / CONE_SLICES;
 
 		data->x = 0;
 		data->y = sin(theta) * CONE_RADIUS;
@@ -498,10 +503,9 @@ static void setConeVertex(glm::vec3* data, int slice) {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Set Cone Normal Data
-////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * Sets the cone normals.
+ */
 static void setConeNormal(glm::vec3* data, int slice) {
 	if (slice == CONE_SLICES + 1)
 	{
@@ -518,10 +522,10 @@ static void setConeNormal(glm::vec3* data, int slice) {
 	else
 	{
 		const float angle = atanf(CONE_RADIUS / CONE_HEIGHT);
-		const float s = slice - 1;
+		const float s = slice - 1.0f;
 		const float PI = 3.14159265358f;
 
-		float theta = 2 * PI * s / CONE_SLICES;
+		const float theta = 2 * PI * s / CONE_SLICES;
 
 		data->x = sin(angle);
 		data->y = cos(angle) * sin(theta);
@@ -529,10 +533,9 @@ static void setConeNormal(glm::vec3* data, int slice) {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Set Cone Vertex Index Data
-////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * Sets the cone vertex indices for the triangles draw primitive.
+ */
 static void setConeVertexIndex(unsigned int* data, int count) {
 	const int n = count / 6;
 	const int i = count % 6;
@@ -542,7 +545,8 @@ static void setConeVertexIndex(unsigned int* data, int count) {
 	{
 		if (i < 3)
 		{
-			*data = n + i;
+			const unsigned int index = n + i;
+			*data = (index == CONE_SLICES + 1 ? 1 : index);
 		}
 		else
 		{
@@ -556,16 +560,16 @@ static void setConeVertexIndex(unsigned int* data, int count) {
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Set Vertex Buffer Data
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Sets the VBO data.
+ */
 void setVertexBufferData()
 {
 
 	int slice;
 	int i;
 
-	// upload vertex points data
+	// vertex points data upload
 	glBindBuffer(GL_ARRAY_BUFFER, coneVerts);
 	glm::vec3* verts = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	i = 0;
@@ -574,7 +578,7 @@ void setVertexBufferData()
 	}
 	glUnmapBuffer(GL_ARRAY_BUFFER);
 
-	// upload vertex normal data
+	// vertex normal data upload
 	glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
 	glm::vec3* normals = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	i = 0;
@@ -584,23 +588,21 @@ void setVertexBufferData()
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);
 
-	// upload vertex points data
+	// vertex points data upload
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
 	unsigned int* indices = (unsigned int*)glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
 	for (i = 0; i < CONE_SLICES * 2 * 3; i++) {
 		setConeVertexIndex(&indices[i], i);
 	}
 	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-
 }
 
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Reshape callback
-////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * Window reshape function.
+ */
 void reshape(int width, int height) {
 	// viewport
 	glViewport(0, 0, width, height);
@@ -614,14 +616,14 @@ void reshape(int width, int height) {
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Display callback
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Displays the model.
+ */
 void display()
 {
 	float millis;
 
-	//CUDA start Timing
+	// CUDA start Timing
 	cudaEventRecord(start);
 
 	// run CUDA kernel to generate vertex positions
@@ -634,25 +636,27 @@ void display()
 	glLoadIdentity();
 
 
-	//zoom
-	glTranslatef(0.0, 0.0, translate_z);
-	//move
+	// Camera movement
 	glRotatef(rotate_x, 1.0, 0.0, 0.0);
 	glRotatef(rotate_y, 0.0, 0.0, 1.0);
+	// move
+	glTranslatef(translate_x, translate_y, translate_z);
+	pos = glm::fvec3(translate_x, translate_y, translate_z);
 
 
-	//Set light position
+
+	// Set light position
 	glLightfv(GL_LIGHT0, GL_POSITION, LIGHT_POSITION);
 
 
-	//Draw turtle Agents in default state
+	// Draw turtle Agents in default state
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_BUFFER_EXT, turtle_default_displacementTex);
-	//loop
+	// loop
 	for (int i = 0; i < get_agent_turtle_default_count(); i++) {
 		glVertexAttrib1f(vs_mapIndex, (float)i);
 
-		//draw using vertex and attribute data on the gpu (fast)
+		// draw using vertex and attribute data on the gpu (fast)
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_NORMAL_ARRAY);
 		glEnableClientState(GL_INDEX_ARRAY);
@@ -661,7 +665,7 @@ void display()
 		glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
 		glNormalPointer(GL_FLOAT, 0, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
-		glDrawElements(GL_TRIANGLES, 3 * 2 * CONE_SLICES, GL_UNSIGNED_INT, nullptr);
+		glDrawElements(GL_TRIANGLES, 3 * 2 * CONE_SLICES, GL_UNSIGNED_INT, NULL);
 
 
 		glDisableClientState(GL_NORMAL_ARRAY);
@@ -670,7 +674,7 @@ void display()
 	}
 
 
-	//CUDA stop timing
+	// CUDA stop timing
 	cudaEventRecord(stop);
 	glFlush();
 	cudaEventSynchronize(stop);
@@ -679,10 +683,10 @@ void display()
 
 	if (frame_count == display_rate) {
 		char title[100];
-		sprintf(title, "Execution & Rendering Total: %f (FPS), %f milliseconds per frame", display_rate / (frame_time / 1000.0f), frame_time / display_rate);
+		sprintf(title, "Flocking - Execution & Rendering Total: %f (FPS), %f milliseconds per frame", display_rate / (frame_time / 1000.0f), frame_time / display_rate);
 		glutSetWindowTitle(title);
 
-		//reset
+		// reset
 		frame_count = 0;
 		frame_time = 0.0;
 	}
@@ -700,9 +704,9 @@ void display()
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Window close callback
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Closes the window.
+ */
 void close()
 {
 	// Cleanup visualisation memory
@@ -720,15 +724,20 @@ void close()
 	cleanup();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Keyboard events handler
-////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Keyboard event handler.
+ */
 void keyboard(unsigned char key, int /*x*/, int /*y*/)
 {
 	switch (key) {
 		// Space == 32
 	case(32):
 		paused = !paused;
+		break;
+	case('.'):
+		singleIteration();
+		fflush(stdout);
 		break;
 		// Esc == 27
 	case(27):
@@ -738,23 +747,50 @@ void keyboard(unsigned char key, int /*x*/, int /*y*/)
 	}
 }
 
-
-
-
+/**
+ * Keyboard event handler.
+ */
 void special(int key, int x, int y) {
 	switch (key)
 	{
 	case(GLUT_KEY_RIGHT):
-		singleIteration();
-		fflush(stdout);
+		moveCamera(Direction::RIGHT);
+		break;
+	case(GLUT_KEY_UP):
+		moveCamera(Direction::UP);
+		break;
+	case(GLUT_KEY_LEFT):
+		moveCamera(Direction::LEFT);
+		break;
+	case(GLUT_KEY_DOWN):
+		moveCamera(Direction::DOWN);
+		break;
+	}
+}
+
+void moveCamera(Direction d)
+{
+	switch (d)
+	{
+	case Direction::DOWN:
+		translate_y += camera_speed;
+		break;
+	case Direction::UP:
+		translate_y -= camera_speed;
+		break;
+	case Direction::RIGHT:
+		translate_x -= camera_speed;
+		break;
+	case Direction::LEFT:
+		translate_x += camera_speed;
 		break;
 	}
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-//! Mouse event handlers
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * Mouse event handler.
+ */
 void mouse(int button, int state, int x, int y)
 {
 	if (state == GLUT_DOWN) {
@@ -786,6 +822,9 @@ void motion(int x, int y)
 	mouse_old_y = y;
 }
 
+/**
+ * OpenGL error check.
+ */
 void checkGLError() {
 	int Error;
 	if ((Error = glGetError()) != GL_NO_ERROR)

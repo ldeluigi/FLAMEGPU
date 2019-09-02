@@ -23,7 +23,7 @@
     <ClInclude Include="src\dynamic\header.h">
       <Filter>dynamic</Filter>
     </ClInclude>
-    <ClInclude Include="src\visualisation\visualisation.h">
+    <ClInclude Include="src\visualisation\CustomVisualisation.h">
       <Filter>visualisation</Filter>
     </ClInclude>
   </ItemGroup>

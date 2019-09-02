@@ -7,7 +7,7 @@
         <type>int</type>
         <name>population</name>
         <description>Number of agents to spawn</description>
-        <defaultValue>200</defaultValue>
+        <defaultValue>100</defaultValue>
       </gpu:variable>
       <gpu:variable>
         <type>float</type>
