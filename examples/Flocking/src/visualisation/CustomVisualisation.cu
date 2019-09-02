@@ -36,6 +36,10 @@ float rotate_x = 0.0, rotate_y = 0.0;
 float translate_z = -VIEW_DISTANCE;
 
 // Keyboard Controls
+const float camera_speed = 0.2f;
+float translate_y = 0, translate_x = 0;
+glm::fvec3 pos(0, 0, 0);
+enum Direction { UP, DOWN, LEFT, RIGHT};
 #if defined(PAUSE_ON_START)
 bool paused = true;
 #else
@@ -81,6 +85,7 @@ void motion(int x, int y);
 void runCuda();
 void checkGLError();
 void createVIBO(GLuint* vbo, GLuint size);
+void moveCamera(Direction d);
 
 
 /* Error check function for safe CUDA API calling */
@@ -394,7 +399,7 @@ void createVIBO(GLuint* vbo, GLuint size)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *vbo);
 
 	// Index Buffer initialization
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, 0, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -540,7 +545,8 @@ static void setConeVertexIndex(unsigned int* data, int count) {
 	{
 		if (i < 3)
 		{
-			*data = n + i;
+			const unsigned int index = n + i;
+			*data = (index == CONE_SLICES + 1 ? 1 : index);
 		}
 		else
 		{
@@ -589,7 +595,6 @@ void setVertexBufferData()
 		setConeVertexIndex(&indices[i], i);
 	}
 	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-
 }
 
 
@@ -631,11 +636,13 @@ void display()
 	glLoadIdentity();
 
 
-	// zoom
-	glTranslatef(0.0, 0.0, translate_z);
-	// move
+	// Camera movement
 	glRotatef(rotate_x, 1.0, 0.0, 0.0);
 	glRotatef(rotate_y, 0.0, 0.0, 1.0);
+	// move
+	glTranslatef(translate_x, translate_y, translate_z);
+	pos = glm::fvec3(translate_x, translate_y, translate_z);
+
 
 
 	// Set light position
@@ -658,7 +665,7 @@ void display()
 		glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
 		glNormalPointer(GL_FLOAT, 0, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
-		glDrawElements(GL_TRIANGLES, 3 * 2 * CONE_SLICES, GL_UNSIGNED_INT, nullptr);
+		glDrawElements(GL_TRIANGLES, 3 * 2 * CONE_SLICES, GL_UNSIGNED_INT, NULL);
 
 
 		glDisableClientState(GL_NORMAL_ARRAY);
@@ -728,6 +735,10 @@ void keyboard(unsigned char key, int /*x*/, int /*y*/)
 	case(32):
 		paused = !paused;
 		break;
+	case('.'):
+		singleIteration();
+		fflush(stdout);
+		break;
 		// Esc == 27
 	case(27):
 	case('q'):
@@ -743,8 +754,35 @@ void special(int key, int x, int y) {
 	switch (key)
 	{
 	case(GLUT_KEY_RIGHT):
-		singleIteration();
-		fflush(stdout);
+		moveCamera(Direction::RIGHT);
+		break;
+	case(GLUT_KEY_UP):
+		moveCamera(Direction::UP);
+		break;
+	case(GLUT_KEY_LEFT):
+		moveCamera(Direction::LEFT);
+		break;
+	case(GLUT_KEY_DOWN):
+		moveCamera(Direction::DOWN);
+		break;
+	}
+}
+
+void moveCamera(Direction d)
+{
+	switch (d)
+	{
+	case Direction::DOWN:
+		translate_y += camera_speed;
+		break;
+	case Direction::UP:
+		translate_y -= camera_speed;
+		break;
+	case Direction::RIGHT:
+		translate_x -= camera_speed;
+		break;
+	case Direction::LEFT:
+		translate_x += camera_speed;
 		break;
 	}
 }

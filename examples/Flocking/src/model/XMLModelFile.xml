@@ -55,7 +55,7 @@
         <type>float</type>
         <name>FOV</name>
         <description>The field of view for each agent, in degrees, centered at the heading direction</description>
-        <defaultValue>120.0f</defaultValue>
+        <defaultValue>280.0f</defaultValue>
       </gpu:variable>
     </gpu:constants>
     <gpu:functionFiles>
