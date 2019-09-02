@@ -36,6 +36,7 @@ float rotate_x = 0.0, rotate_y = 0.0;
 float translate_z = -VIEW_DISTANCE;
 
 // Keyboard Controls
+unsigned int simulation_speed = 1;
 const float camera_speed = 0.2f;
 float translate_y = 0, translate_x = 0;
 glm::fvec3 pos(0, 0, 0);
@@ -241,6 +242,11 @@ void initVisualisation()
 	//create a events for timer
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
+
+	puts("\nHotkeys:\n\tEsc, Q: quit.\n\tSpace: pause/play.\n\t.: perform a single iteration.\n\t"
+		"1...9: set simulation speed.\n\tArrows: change observer position.\n\t"
+		"Left mouse button + mouse movement: change observer perspective.\n\t"
+		"Right mouse button + mouse movement: change observer height.\n");
 }
 
 /**
@@ -264,10 +270,16 @@ void runCuda()
 		delay_count++;
 		if (delay_count == SIMULATION_DELAY) {
 			delay_count = 0;
-			singleIteration();
+			for (int i = 0; i < simulation_speed; i++)
+			{
+				singleIteration();
+			}
 		}
 #else
-		singleIteration();
+		for (int i = 0; i < simulation_speed; i++)
+		{
+			singleIteration();
+		}
 #endif
 	}
 
@@ -732,16 +744,27 @@ void keyboard(unsigned char key, int /*x*/, int /*y*/)
 {
 	switch (key) {
 		// Space == 32
-	case(32):
+	case (32):
 		paused = !paused;
 		break;
-	case('.'):
+	case '.':
 		singleIteration();
 		fflush(stdout);
 		break;
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		simulation_speed = key - '0';
+		break;
 		// Esc == 27
-	case(27):
-	case('q'):
+	case 27:
+	case 'q':
 		// Set the flag indicating we wish to exit the simulation.
 		set_exit_early();
 	}
