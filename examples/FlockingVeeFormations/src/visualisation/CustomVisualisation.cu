@@ -270,13 +270,13 @@ void runCuda()
 		delay_count++;
 		if (delay_count == SIMULATION_DELAY) {
 			delay_count = 0;
-			for (int i = 0; i < simulation_speed; i++)
+			for (unsigned int i = 0; i < simulation_speed; i++)
 			{
 				singleIteration();
 			}
 		}
 #else
-		for (int i = 0; i < simulation_speed; i++)
+		for (unsigned int i = 0; i < simulation_speed; i++)
 		{
 			singleIteration();
 		}
