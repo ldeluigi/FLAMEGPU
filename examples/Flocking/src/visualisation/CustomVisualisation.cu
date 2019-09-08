@@ -665,25 +665,25 @@ void display()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_BUFFER_EXT, turtle_default_displacementTex);
 	// loop
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_INDEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, coneVerts);
+	glVertexPointer(3, GL_FLOAT, 0, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
+	glNormalPointer(GL_FLOAT, 0, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
 	for (int i = 0; i < get_agent_turtle_default_count(); i++) {
 		glVertexAttrib1f(vs_mapIndex, (float)i);
 
 		// draw using vertex and attribute data on the gpu (fast)
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glEnableClientState(GL_NORMAL_ARRAY);
-		glEnableClientState(GL_INDEX_ARRAY);
-		glBindBuffer(GL_ARRAY_BUFFER, coneVerts);
-		glVertexPointer(3, GL_FLOAT, 0, 0);
-		glBindBuffer(GL_ARRAY_BUFFER, coneNormals);
-		glNormalPointer(GL_FLOAT, 0, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneIndices);
 		glDrawElements(GL_TRIANGLES, 3 * 2 * CONE_SLICES, GL_UNSIGNED_INT, NULL);
-
-
-		glDisableClientState(GL_NORMAL_ARRAY);
-		glDisableClientState(GL_VERTEX_ARRAY);
-		glDisableClientState(GL_INDEX_ARRAY);
 	}
+
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_INDEX_ARRAY);
 
 
 	// CUDA stop timing
