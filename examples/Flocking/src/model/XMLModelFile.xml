@@ -66,6 +66,16 @@
         <gpu:name>setup</gpu:name>
       </gpu:initFunction>
     </gpu:initFunctions>
+    <gpu:exitFunctions>
+      <gpu:exitFunction>
+        <gpu:name>finish</gpu:name>
+      </gpu:exitFunction>
+    </gpu:exitFunctions>
+    <gpu:stepFunctions>
+      <gpu:stepFunction>
+        <gpu:name>step</gpu:name>
+      </gpu:stepFunction>
+    </gpu:stepFunctions>
   </gpu:environment>
   <xagents>
     <gpu:xagent>

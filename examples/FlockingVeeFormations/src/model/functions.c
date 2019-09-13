@@ -11,6 +11,12 @@
 
 #include <header.h>
 
+#ifdef FLOCKING_PLOT
+#include <iostream>
+#include <fstream>
+std::ofstream outputFile;
+#endif // FLOCKING_PLOT
+
 #define PI_F 3.141592654f
 #define PI2_F (PI_F * 2)
 #define degreesToRadians(angleDegrees) ((angleDegrees) * PI_F / 180.0)
@@ -97,6 +103,26 @@ __FLAME_GPU_FUNC__ inline float turn_towards(float target_heading, float current
 	return turn_at_most(subtract_headings(target_heading, current_heading), current_heading, max_turn);
 }
 
+__FLAME_GPU_STEP_FUNC__ void step()
+{
+#ifdef FLOCKING_PLOT
+	int accelerate, avoid, separate, align, alone;
+	accelerate = count_turtle_default_colour_variable(FLAME_GPU_VISUALISATION_COLOUR_CYAN);
+	avoid = count_turtle_default_colour_variable(FLAME_GPU_VISUALISATION_COLOUR_RED);
+	separate = count_turtle_default_colour_variable(FLAME_GPU_VISUALISATION_COLOUR_GREEN);
+	align = count_turtle_default_colour_variable(FLAME_GPU_VISUALISATION_COLOUR_YELLOW);
+	alone = count_turtle_default_colour_variable(FLAME_GPU_VISUALISATION_COLOUR_BLACK);
+
+	outputFile << getIterationNumber() << " " << accelerate << " " << avoid << " " << separate << " " << align << " " << alone << std::endl;
+#endif // FLOCKING_PLOT
+}
+
+__FLAME_GPU_EXIT_FUNC__ void finish()
+{
+#ifdef FLOCKING_PLOT
+	outputFile.close();
+#endif // FLOCKING_PLOT;
+}
 
 /**
  * Setup FLAMEGPU Init function.
@@ -142,6 +168,11 @@ __FLAME_GPU_INIT_FUNC__ void setup()
 #ifdef FLOCKING_VERBOSE
 	printf("Conversion to Radians:\nMax turn: %.4f rad\nFOV: %.4f rad\n", m_turn, m_fov);
 #endif // FLOCKING_VERBOSE
+#ifdef FLOCKING_PLOT
+	outputFile.open("out");
+	if (!outputFile.is_open()) set_exit_early();
+	else outputFile << "# itno accelerate avoid separate align alone" << std::endl;
+#endif // FLOCKING_PLOT
 }
 
 /**

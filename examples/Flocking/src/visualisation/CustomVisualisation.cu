@@ -40,7 +40,7 @@ unsigned int simulation_speed = 1;
 const float camera_speed = 0.2f;
 float translate_y = 0, translate_x = 0;
 glm::fvec3 pos(0, 0, 0);
-enum Direction { UP, DOWN, LEFT, RIGHT};
+enum Direction { UP, DOWN, LEFT, RIGHT };
 #if defined(PAUSE_ON_START)
 bool paused = true;
 #else
@@ -63,7 +63,7 @@ int frame_count;
 float frame_time = 0.0;
 
 #ifdef SIMULATION_DELAY
-	int delay_count = 0;
+int delay_count = 0;
 #endif
 
 /**
@@ -155,7 +155,7 @@ const char vertexShaderSource[] = R"(
 	 	lightDir = vec3(gl_LightSource[0].position.xyz - mvVertex);
 	 	normal = gl_NormalMatrix * gl_Normal;
 	 })"
-;
+	;
 
 const char fragmentShaderSource[] = R"(
 
@@ -178,7 +178,7 @@ const char fragmentShaderSource[] = R"(
 		gl_FragColor = AmbientColor + DiffuseColor * DiffuseTerm;
 		
 	})"
-;
+	;
 
 // GPU Kernel
 __global__ void output_turtle_agent_to_VBO(xmachine_memory_turtle_list* agents, glm::vec4* vbo, glm::vec3 centralise) {
@@ -695,7 +695,7 @@ void display()
 
 	if (frame_count == display_rate) {
 		char title[100];
-		sprintf(title, "Flocking - Execution & Rendering Total: %f (FPS), %f milliseconds per frame", display_rate / (frame_time / 1000.0f), frame_time / display_rate);
+		sprintf(title, "Flocking - Execution & Rendering Total: %f (FPS), %f milliseconds per frame, itno: %u", display_rate / (frame_time / 1000.0f), frame_time / display_rate, getIterationNumber());
 		glutSetWindowTitle(title);
 
 		// reset

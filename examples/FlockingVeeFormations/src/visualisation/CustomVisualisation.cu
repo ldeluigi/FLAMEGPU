@@ -695,7 +695,7 @@ void display()
 
 	if (frame_count == display_rate) {
 		char title[100];
-		sprintf(title, "Flocking - Execution & Rendering Total: %f (FPS), %f milliseconds per frame", display_rate / (frame_time / 1000.0f), frame_time / display_rate);
+		sprintf(title, "Flocking - Execution & Rendering Total: %f (FPS), %f milliseconds per frame, itno: %u", display_rate / (frame_time / 1000.0f), frame_time / display_rate, getIterationNumber());
 		glutSetWindowTitle(title);
 
 		// reset

@@ -61,7 +61,7 @@
         <type>float</type>
         <name>bounds</name>
         <description>Dimension of an edge of the world</description>
-        <defaultValue>70.0f</defaultValue>
+        <defaultValue>140.0f</defaultValue>
       </gpu:variable>
     </gpu:constants>
     <gpu:functionFiles>
@@ -72,6 +72,16 @@
         <gpu:name>setup</gpu:name>
       </gpu:initFunction>
     </gpu:initFunctions>
+    <gpu:exitFunctions>
+     <gpu:exitFunction>
+         <gpu:name>finish</gpu:name>
+     </gpu:exitFunction>
+    </gpu:exitFunctions>
+    <gpu:stepFunctions>
+      <gpu:stepFunction>
+        <gpu:name>step</gpu:name>
+      </gpu:stepFunction>
+    </gpu:stepFunctions>
   </gpu:environment>
   <xagents>
     <gpu:xagent>
@@ -172,9 +182,9 @@
       <gpu:partitioningSpatial>
         <gpu:radius>10</gpu:radius>
         <gpu:xmin>0</gpu:xmin>
-        <gpu:xmax>70</gpu:xmax>
+        <gpu:xmax>140</gpu:xmax>
         <gpu:ymin>0</gpu:ymin>
-        <gpu:ymax>70</gpu:ymax>
+        <gpu:ymax>140</gpu:ymax>
         <gpu:zmin>-5</gpu:zmin>
         <gpu:zmax>5</gpu:zmax>
       </gpu:partitioningSpatial>
