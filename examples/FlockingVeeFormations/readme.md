@@ -16,6 +16,8 @@ After some iterations, depending on the parameters, different 'V' flock formatio
 
 The visualization code is written with OpenGL and it's based on the default dynamically generated visualization code of the Flame GPU framework, but was heavily modified to allow the visualization of cones that point in the direction of the movement. A different control system and camera movement was added to provide a better visualization of the flocks. This code entirely is shared with the Flocking Flame GPU model.
 
+You can use gnuplot and plot.gp to draw a graph with the output of the program if compiled with FLOCKING_PLOT defined.
+
 ## Performances
 
 The entire C++/CUDA code was thought and written with performances in mind, knowing the capability of the Flame GPU acrhitecture and the CUDA features. As a result, the simulation can easily support thousands of agents without a single drop in fps, depending on the hardware that is run on.

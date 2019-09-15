@@ -20,6 +20,8 @@ The visualization code is written with OpenGL and it's based on the default dyna
 
 In addition to that, the colour of each bird represents its state (alone, in cohesion/alignment or in separation). More information can be found in the documentation of the model.
 
+You can use gnuplot and plot.gp to draw a graph with the output of the program if compiled with FLOCKING_PLOT defined.
+
 ## Performances
 
 The entire C++/CUDA code was thought and written with performances in mind, knowing the capability of the Flame GPU acrhitecture and the CUDA features. As a result, the simulation can easily support thousands of agents without a single drop in fps, depending on the hardware that is run on.
